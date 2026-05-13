@@ -391,6 +391,14 @@ class Arguments : AllStatic {
 
   // Check consistency or otherwise of VM argument settings
   static bool check_vm_args_consistency();
+
+  // Eliya — see asymm.systems/product/eliya  (ADR-00001, ADR-00006).
+  // Phase 1: activates the Production profile defaults (observability,
+  // diagnostics, operational, tooling) when EliyaProfile="Production".
+  static void apply_eliya_production_profile();
+  // Three-tier conflict detection per ADR-00001 §2.5. Gated by
+  // -XX:+EliyaConflictCheck (default true).
+  static void check_eliya_flag_consistency();
   // Used by os_solaris
   static bool process_settings_file(const char* file_name, bool should_exist, jboolean ignore_unrecognized);
 

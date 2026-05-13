@@ -157,3 +157,46 @@ JVMFlag::Error LargePageSizeInBytesConstraintFunc(size_t value, bool verbose) {
   }
   return JVMFlag::SUCCESS;
 }
+
+
+// ============================================================
+// Eliya — see asymm.systems/product/eliya  (ADR-00001 §2)
+//
+// Phase 1 valid values: None, Production.
+// Phase 4 reserved values — seven single-framework profiles
+// (PCIDSS, HIPAA, SOX, FedRAMP, GDPR, ISO27001, SOC2) plus three
+// combined-framework profiles (Healthcare-Payment, Financial-SaaS,
+// Federal-Defense) — are rejected with a "reserved" message so
+// operators discovering them in documentation get a clear error
+// rather than silent acceptance.
+// ============================================================
+JVMFlag::Error EliyaProfileConstraintFunc(ccstr value, bool verbose) {
+  if (value == nullptr) {
+    JVMFlag::printError(verbose, "EliyaProfile cannot be empty\n");
+    return JVMFlag::VIOLATES_CONSTRAINT;
+  }
+  if (strcmp(value, "None") == 0 || strcmp(value, "Production") == 0) {
+    return JVMFlag::SUCCESS;
+  }
+  if (strcmp(value, "PCIDSS")             == 0 ||
+      strcmp(value, "HIPAA")              == 0 ||
+      strcmp(value, "SOX")                == 0 ||
+      strcmp(value, "FedRAMP")            == 0 ||
+      strcmp(value, "GDPR")               == 0 ||
+      strcmp(value, "ISO27001")           == 0 ||
+      strcmp(value, "SOC2")               == 0 ||
+      strcmp(value, "Healthcare-Payment") == 0 ||
+      strcmp(value, "Financial-SaaS")     == 0 ||
+      strcmp(value, "Federal-Defense")    == 0) {
+    JVMFlag::printError(verbose,
+                        "EliyaProfile=%s is reserved for Phase 4. "
+                        "Currently available: None, Production.\n",
+                        value);
+    return JVMFlag::VIOLATES_CONSTRAINT;
+  }
+  JVMFlag::printError(verbose,
+                      "Unrecognized value %s for EliyaProfile. "
+                      "Must be one of: None, Production.\n",
+                      value);
+  return JVMFlag::VIOLATES_CONSTRAINT;
+}

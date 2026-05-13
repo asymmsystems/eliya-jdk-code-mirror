@@ -2018,6 +2018,21 @@ const int ObjectAlignmentInBytes = 8;
           "Minimal number of elements in a sorted collection to prefer"     \
           "binary search over simple linear search." )                      \
                                                                             \
+  /* Eliya — see asymm.systems/product/eliya  (ADR-00001, ADR-00006)    */  \
+  product(ccstr, EliyaProfile, "None",                                      \
+          "Eliya operational profile selector. Phase 1 valid values: "      \
+          "None, Production. Activates observability + diagnostics + "      \
+          "operational defaults per ADR-00001 §2.4. Phase 4 reserved "      \
+          "values per ADR-00001 §7.2: PCIDSS, HIPAA, SOX, FedRAMP, GDPR, "  \
+          "ISO27001, SOC2.")                                                \
+          constraint(EliyaProfileConstraintFunc, AtParse)                   \
+                                                                            \
+  product(bool, EliyaConflictCheck, true,                                   \
+          "When EliyaProfile is set, detect conflicts between profile-set " \
+          "ergonomic defaults and user-specified flags using three-tier "   \
+          "logic (silent override / warning / fatal) per ADR-00001 §2.5. "  \
+          "Set false to disable.")                                          \
+                                                                            \
 
 // end of RUNTIME_FLAGS
 
