@@ -1,0 +1,53 @@
+# Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
+# @author Fahim Farook
+#
+# Weekly OpenJDK upstream sync for the Eliya mirror repo.
+#
+# Per ADR-00008 (per-LTS git-flow): rebases 25/develop onto 25/upstream
+# weekly. 25/main is never touched by the sync workflow — main only
+# advances via release-merge or hotfix-merge per ADR-00008 §2.3, §2.4.
+#
+# Per ADR-00005 §2.2: JDK 21 is dropped, not deferred. This workflow
+# carries no sync-21 job. If JDK 21 is ever revived (would require
+# ADR-00005 amendment), a parallel sync-21 job can be added at that point.
+
+name: workflow-sync-upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'    # Every Sunday at midnight UTC
+  workflow_dispatch:
+
+jobs:
+  sync-25:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure upstream remote
+        run: |
+          git remote add upstream-25 https://github.com/openjdk/jdk25u.git || true
+
+      - name: Sync 25/upstream from openjdk/jdk25u
+        run: |
+          git fetch upstream-25 --tags
+          git checkout 25/upstream
+          git merge upstream-25/master --ff-only
+          git push origin 25/upstream --follow-tags
+
+      - name: Rebase 25/develop onto 25/upstream
+        run: |
+          git checkout 25/develop
+          git rebase 25/upstream
+          git push origin 25/develop --force-with-lease
+
+      - name: Check for new GA tags
+        id: check-tags
+        run: |
+          LATEST_TAG=$(git tag -l 'jdk-25*-ga' --sort=-version:refname | head -1)
+          echo "latest_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+          echo "Latest JDK 25 GA tag: ${LATEST_TAG}"
+          echo "Next step: cut a 25/release/* branch from 25/develop"
+          echo "per ADR-00008 §2.3 if this tag has not yet been released as Eliya."
