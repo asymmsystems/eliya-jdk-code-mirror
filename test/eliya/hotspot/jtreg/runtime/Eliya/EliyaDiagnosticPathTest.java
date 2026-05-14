@@ -5,7 +5,7 @@
 /*
  * @test
  * @summary Validate the diagnostic-path resolution chain per ADR-00006
- *          (amended §2.2: env → sysprop → HOSTNAME-or-default).
+ *          (amended sec.2.2: env -> sysprop -> HOSTNAME-or-default).
  *          - Env wins over sysprop
  *          - Sysprop wins over platform default
  *          - Service / replica resolution uses HOSTNAME fallback
@@ -50,7 +50,7 @@ public class EliyaDiagnosticPathTest {
     public static void main(String[] args) throws Exception {
 
         // 1. Env wins over sysprop: ELIYA_DIAGNOSTIC_PATH=/tmp/env-wins
-        //    plus -Deliya.diagnostic.path=/tmp/sysprop-loses → /tmp/env-wins
+        //    plus -Deliya.diagnostic.path=/tmp/sysprop-loses -> /tmp/env-wins
         Map<String,String> envWins = new HashMap<>();
         envWins.put("ELIYA_DIAGNOSTIC_PATH", "/tmp/eliya-test-env-wins");
         envWins.put("ELIYA_SERVICE_NAME", "svc");
@@ -81,7 +81,7 @@ public class EliyaDiagnosticPathTest {
         suppression.put("ELIYA_SERVICE_NAME", "same");
         suppression.put("ELIYA_REPLICA_NAME", "same");
         // Two-level path: /tmp/eliya-test-supp/same/heap-dumps/
-        // (no /same/same/ — replica suppressed)
+        // (no /same/same/ - replica suppressed)
         assertHeapDumpPathContains(
             suppression,
             new String[]{ "-XX:EliyaProfile=Production" },

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
  *
- * Eliya — see asymm.systems/product/eliya
+ * Eliya - see asymm.systems/product/eliya
  *   ADR-00009: source file layout (Eliya facade)
  *   ADR-00010: data-driven profile dispatch (EliyaFlags::activate_profile)
  *
@@ -27,9 +27,9 @@ void Eliya::apply() {
   // state of other ergonomic decisions. Explicit user command-line
   // flags still win because EliyaArguments::apply_production_profile
   // (and future activators) use FLAG_IS_CMDLINE guards (ADR-00001
-  // §2.5 tier 1).
+  // sec.2.5 tier 1).
   //
-  // Per ADR-00010 §2: dispatch is data-driven. The constraint function
+  // Per ADR-00010 sec.2: dispatch is data-driven. The constraint function
   // already rejected unrecognised and Phase-4-reserved values at parse
   // time, so by the time we get here, EliyaProfile is either "None"
   // (no activator), "Production" (Phase 1 activator), or a Phase 4+

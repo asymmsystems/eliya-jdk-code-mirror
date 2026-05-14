@@ -1,15 +1,15 @@
 /*
  * Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
  *
- * Eliya — see asymm.systems/product/eliya
- *   ADR-00001 §7.2: Phase 4 reserved profile-value namespace
+ * Eliya - see asymm.systems/product/eliya
+ *   ADR-00001 sec.7.2: Phase 4 reserved profile-value namespace
  *   ADR-00009: source file layout
  *   ADR-00010: constraint function location + data-driven Status table
  *
  * Data-driven design: validate_profile() and activate_profile() are
  * three-line bodies that look up a value in KNOWN_PROFILES[] and act on
  * the entry's metadata. Adding a new profile = adding a row. Activating
- * a profile = changing its Status reference (RESERVED_PHASE_4 → ACCEPTED)
+ * a profile = changing its Status reference (RESERVED_PHASE_4 -> ACCEPTED)
  * and setting its activator field. The function bodies never change.
  */
 
@@ -23,7 +23,7 @@
 // ============================================================
 const EliyaFlags::Status EliyaFlags::ACCEPTED = {
     JVMFlag::SUCCESS,
-    nullptr   // no error message — value accepted
+    nullptr   // no error message - value accepted
 };
 
 const EliyaFlags::Status EliyaFlags::RESERVED_PHASE_4 = {
@@ -39,8 +39,8 @@ const EliyaFlags::Status EliyaFlags::UNRECOGNIZED = {
 };
 
 // ============================================================
-// The profile registry — THE one place that changes when profiles
-// activate / deprecate / are added. Per ADR-00001 §7.2 the Phase 4
+// The profile registry - THE one place that changes when profiles
+// activate / deprecate / are added. Per ADR-00001 sec.7.2 the Phase 4
 // reserved namespace is the seven single-framework profiles plus the
 // three combined profiles.
 //
@@ -52,7 +52,7 @@ const EliyaFlags::Status EliyaFlags::UNRECOGNIZED = {
 const EliyaFlags::Entry EliyaFlags::KNOWN_PROFILES[] = {
     { "None",               ACCEPTED,         nullptr },
     { "Production",         ACCEPTED,         &EliyaArguments::apply_production_profile },
-    // Phase 4 single-framework reserved namespace (ADR-00001 §7.2):
+    // Phase 4 single-framework reserved namespace (ADR-00001 sec.7.2):
     { "PCIDSS",             RESERVED_PHASE_4, nullptr },
     { "HIPAA",              RESERVED_PHASE_4, nullptr },
     { "SOX",                RESERVED_PHASE_4, nullptr },
@@ -60,7 +60,7 @@ const EliyaFlags::Entry EliyaFlags::KNOWN_PROFILES[] = {
     { "GDPR",               RESERVED_PHASE_4, nullptr },
     { "ISO27001",           RESERVED_PHASE_4, nullptr },
     { "SOC2",               RESERVED_PHASE_4, nullptr },
-    // Phase 4 combined-framework reserved namespace (ADR-00001 §7.2):
+    // Phase 4 combined-framework reserved namespace (ADR-00001 sec.7.2):
     { "Healthcare-Payment", RESERVED_PHASE_4, nullptr },
     { "Financial-SaaS",     RESERVED_PHASE_4, nullptr },
     { "Federal-Defense",    RESERVED_PHASE_4, nullptr },

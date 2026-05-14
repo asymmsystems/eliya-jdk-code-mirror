@@ -50,7 +50,7 @@
 #include "prims/jvmtiAgentList.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/eliya.hpp"                    // Eliya — see ADR-00009 (file layout)
+#include "runtime/eliya.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/flags/jvmFlagAccess.hpp"
 #include "runtime/flags/jvmFlagLimit.hpp"
@@ -3781,10 +3781,6 @@ void Arguments::set_compact_headers_flags() {
 #endif
 }
 
-// Eliya integration moved to src/eliya/hotspot/share/runtime/ per
-// ADR-00009 (source file layout) + ADR-00010 (constraint fn location).
-// The single delegation lives at the end of apply_ergo() below.
-
 jint Arguments::apply_ergo() {
   // Set flags based on ergonomics.
   jint result = set_ergonomics_flags();
@@ -3906,10 +3902,6 @@ jint Arguments::apply_ergo() {
     }
   }
 
-  // Eliya — single-line delegation per ADR-00009. All Eliya behaviour
-  // (profile activation, conflict detection, future Phase 4 profile
-  // dispatch) lives in src/eliya/hotspot/share/runtime/. This line is
-  // touched once during ISSUE-00001 and never again across phases.
   Eliya::apply();
 
   return JNI_OK;

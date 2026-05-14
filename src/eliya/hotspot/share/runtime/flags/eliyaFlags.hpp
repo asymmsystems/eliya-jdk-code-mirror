@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
  *
- * Eliya — see asymm.systems/product/eliya
- *   ADR-00001 §7.2: Phase 4 reserved profile-value namespace
+ * Eliya - see asymm.systems/product/eliya
+ *   ADR-00001 sec.7.2: Phase 4 reserved profile-value namespace
  *   ADR-00009: source file layout (Eliya counterpart to
  *              src/hotspot/share/runtime/flags/jvmFlagConstraintsRuntime.cpp)
  *   ADR-00010: constraint function location + data-driven Status table

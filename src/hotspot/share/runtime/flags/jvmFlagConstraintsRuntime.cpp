@@ -159,7 +159,3 @@ JVMFlag::Error LargePageSizeInBytesConstraintFunc(size_t value, bool verbose) {
 }
 
 
-// (EliyaProfileConstraintFunc moved to src/eliya/hotspot/share/runtime/flags/eliyaFlags.cpp
-//  per ADR-00010. The RUNTIME_CONSTRAINTS macro entry in
-//  jvmFlagConstraintsRuntime.hpp generates the declaration; the linker
-//  resolves it to the Eliya-side definition.)

@@ -392,9 +392,6 @@ class Arguments : AllStatic {
   // Check consistency or otherwise of VM argument settings
   static bool check_vm_args_consistency();
 
-  // (Eliya integration moved to src/eliya/hotspot/share/runtime/ per
-  //  ADR-00009. See class Eliya in runtime/eliya.hpp.)
-
   // Used by os_solaris
   static bool process_settings_file(const char* file_name, bool should_exist, jboolean ignore_unrecognized);
 

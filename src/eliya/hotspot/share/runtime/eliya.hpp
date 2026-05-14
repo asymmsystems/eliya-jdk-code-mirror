@@ -1,13 +1,13 @@
 /*
  * Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
  *
- * Eliya — see asymm.systems/product/eliya
+ * Eliya - see asymm.systems/product/eliya
  *
  * Top-level Eliya facade. Single entry point invoked from upstream
  * arguments.cpp at the end of Arguments::apply_ergo(). All Eliya
  * behaviour dispatches from here.
  *
- * Per ADR-00009 §2.1, this file lives at the root of the Eliya source
+ * Per ADR-00009 sec.2.1, this file lives at the root of the Eliya source
  * mirror tree. The upstream-file delegation is one line:
  *     Eliya::apply();
  * in arguments.cpp's apply_ergo().
@@ -24,7 +24,7 @@ public:
   // current value of EliyaProfile + EliyaConflictCheck and routes to
   // the appropriate Eliya-side handlers. Future profile activations
   // (Phase 4) and capability-flag-based conflict tiers (Phase 2)
-  // extend the dispatchee functions (in eliyaArguments.cpp) — this
+  // extend the dispatchee functions (in eliyaArguments.cpp) - this
   // facade method is never touched again.
   static void apply();
 };

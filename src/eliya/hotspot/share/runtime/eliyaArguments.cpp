@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
  *
- * Eliya — see asymm.systems/product/eliya
+ * Eliya - see asymm.systems/product/eliya
  *   ADR-00001: flag taxonomy
  *   ADR-00006: adaptive three-or-two-level diagnostic path layout
  *              with the replica-suppression rule
@@ -10,8 +10,8 @@
  *
  * Data-driven design throughout:
  *   - Path-component resolution: single generic resolve_chain() helper
- *     drives base / service / replica via a uniform env → sysprop →
- *     HOSTNAME → fallback chain.
+ *     drives base / service / replica via a uniform env -> sysprop ->
+ *     HOSTNAME -> fallback chain.
  *   - Path building: single build_path() over a Category enum + name
  *     table; replica suppression handled via empty-segment trick (no
  *     double-branched format strings).
@@ -47,31 +47,43 @@ static const char* try_sysprop(const char* key) {
   return (v != nullptr && *v != '\0') ? v : nullptr;
 }
 
-// Per ADR-00006: chain env → sysprop → HOSTNAME → fallback, returning
-// the first non-empty value. include_hostname is false for the base
-// path (which doesn't fall back to HOSTNAME) and true for service and
-// replica.
+// Return val if non-nullptr, else fallback. Lets callers compose
+// chains like or_else(try_env("HOSTNAME"), "default") in lieu of a
+// ternary at the call site.
 //
-// Three resolvers (base, service, replica) collapse to one-liner calls
-// against this generic helper after the ADR-00006 §2.2 amendment adds
-// sysprop support to the base path (Commit 3 of ISSUE-00001 lands the
-// sysprop step there; today the helper is invoked with the upstream
-// sysprop key already filled in but the base-path call passes an
-// empty key, falling through to the platform default).
+// @param val      first candidate value (may be nullptr)
+// @param fallback value returned when val is nullptr
+// @return         val if non-nullptr, else fallback
+static inline const char* or_else(const char* val, const char* fallback) {
+  return (val != nullptr) ? val : fallback;
+}
+
+// Three-step resolution chain per ADR-00006 sec.2.2: try the env var,
+// then the system property, then return the fallback. Callers wanting
+// a HOSTNAME step compose it explicitly via or_else at the fallback
+// parameter (see resolve_eliya_service_name / resolve_eliya_replica_name).
+//
+// @param env_var     env-variable name to consult first
+// @param sysprop_key system-property key consulted second
+//                    (pass nullptr to skip the sysprop step)
+// @param fallback    value returned when both lookups are unset / empty;
+//                    may itself be a composed chain
+// @return            first non-empty result, else fallback (which may
+//                    be nullptr if the resolver permits suppression)
 static const char* resolve_chain(const char* env_var,
                                   const char* sysprop_key,
-                                  bool include_hostname,
                                   const char* fallback) {
   const char* v;
   if ((v = try_env(env_var))) return v;
   if (sysprop_key != nullptr && (v = try_sysprop(sysprop_key))) return v;
-  if (include_hostname && (v = try_env("HOSTNAME"))) return v;
   return fallback;
 }
 
 // Platform default base path. Separate function so the resolve_chain
 // fallback parameter can be a simple string while the platform
 // branching stays here.
+//
+// @return literal path for the build's target OS
 static const char* platform_default_base_path() {
 #if defined(__APPLE__)
   return "/usr/local/var/eliya";
@@ -83,35 +95,39 @@ static const char* platform_default_base_path() {
 }
 
 // Resolve the diagnostic base path.
-// Per ADR-00006 §2.2 (amended): env → sysprop → platform default.
-// Three steps in symmetry with service and replica resolution.
+// Per ADR-00006 sec.2.2 (amended): env -> sysprop -> platform default.
+//
+// @return absolute path with no trailing slash (build_path adds slashes)
 static const char* resolve_eliya_base_path() {
   return resolve_chain("ELIYA_DIAGNOSTIC_PATH",
                        "eliya.diagnostic.path",
-                       /* include_hostname */ false,
                        platform_default_base_path());
 }
 
-// Resolve the service name. Order: env → sysprop → HOSTNAME → "default".
+// Resolve the service name.
+// Order: env -> sysprop -> HOSTNAME -> literal "default".
+//
+// @return non-null, non-empty service identifier
 static const char* resolve_eliya_service_name() {
   return resolve_chain("ELIYA_SERVICE_NAME",
                        "eliya.service.name",
-                       /* include_hostname */ true,
-                       /* fallback */ "default");
+                       or_else(try_env("HOSTNAME"), "default"));
 }
 
-// Resolve the replica name. Order: env → sysprop → HOSTNAME → nullptr.
-// build_path()'s replica-suppression rule handles nullptr (and the
+// Resolve the replica name.
+// Order: env -> sysprop -> HOSTNAME -> nullptr.
+// build_path's replica-suppression rule handles nullptr (and the
 // service==replica byte-equality case).
+//
+// @return replica identifier, or nullptr to suppress the replica level
 static const char* resolve_eliya_replica_name() {
   return resolve_chain("ELIYA_REPLICA_NAME",
                        "eliya.replica.name",
-                       /* include_hostname */ true,
-                       /* fallback */ nullptr);
+                       try_env("HOSTNAME"));
 }
 
 // ============================================================
-// Diagnostic-path builder (ADR-00006 §2.1)
+// Diagnostic-path builder (ADR-00006 sec.2.1)
 // ============================================================
 
 namespace {
@@ -146,13 +162,13 @@ inline const char* name_of(Category c) {
 
 } // anonymous namespace
 
-// Unified path builder. Per ADR-00006 §2.1, produces either a
+// Unified path builder. Per ADR-00006 sec.2.1, produces either a
 // directory path (filename=nullptr) ending in trailing slash, or a
 // file path with the given filename appended (no trailing slash).
 //
-// Replica suppression (ADR-00006 §2.3): when the resolved replica is
+// Replica suppression (ADR-00006 sec.2.3): when the resolved replica is
 // nullptr or byte-equal to the service, the replica segment collapses
-// to empty via the r_sep/r_val empty-segment trick — single snprintf
+// to empty via the r_sep/r_val empty-segment trick - single snprintf
 // produces either three-level or two-level path with no double slashes.
 //
 // Returned buffer is allocated from the C heap (mtArguments = NMT
@@ -201,7 +217,7 @@ static char* build_path(Category cat, const char* filename = nullptr) {
 // Phase 1 activator. Sets the production-readiness defaults when
 // -XX:EliyaProfile=Production was specified, respecting existing user
 // command-line settings (FLAG_IS_CMDLINE silent-override per ADR-00001
-// §2.5 tier 1).
+// sec.2.5 tier 1).
 //
 // Two capabilities cannot use FLAG_SET_ERGO and are deferred to Phase 1.5:
 //   - StartFlightRecording is parsed by JfrOptionSet, not as a product flag.
@@ -209,7 +225,7 @@ static char* build_path(Category cat, const char* filename = nullptr) {
 // Both require dedicated integration hooks; tracked as TODO(Phase1.5)
 // markers below.
 void EliyaArguments::apply_production_profile() {
-  // JFR continuous recording — TODO(Phase1.5) JfrOptionSet hook.
+  // JFR continuous recording - TODO(Phase1.5) JfrOptionSet hook.
   // Intended spec when the integration lands:
   //   disk=true,maxage=24h,maxsize=250m,settings=default,dumponexit=true,
   //   filename=${build_path(JFR)}/recording.jfr
@@ -225,7 +241,7 @@ void EliyaArguments::apply_production_profile() {
     FLAG_SET_ERGO(NativeMemoryTracking, "summary");
   }
 
-  // GC logging — TODO(Phase1.5) LogConfiguration hook.
+  // GC logging - TODO(Phase1.5) LogConfiguration hook.
   // Intended spec when the integration lands:
   //   gc*:file=${build_path(GC)}gc-%t-%p.log:time,uptime,level,tags:
   //       filecount=5,filesize=20m
@@ -246,7 +262,7 @@ void EliyaArguments::apply_production_profile() {
 }
 
 // ============================================================
-// Three-tier conflict detection (ADR-00001 §2.5)
+// Three-tier conflict detection (ADR-00001 sec.2.5)
 // ============================================================
 
 // Tier 1 (silent override) is realised structurally via the
