@@ -51,7 +51,14 @@ jobs:
       bundle-name: ${{ inputs.bundle-name }}
       dry-run: ${{ inputs.dry-run }}
 
-  # Future Eliya CI concerns plug in below as additional jobs:
+  # Future Eliya CI concerns plug in below as additional jobs.
+  #
+  # INVARIANT (ADR-00012 sec.2.2.1): every workflow under this facade is a
+  # VERIFICATION workflow. CI publishes nothing. Banned from any new
+  # eliya-*.yaml: gh release create, docker push, gpg --detach-sign,
+  # SDKman API, apt/yum hosted repo writes. All release-artefact paths
+  # live in the platform-repo Makefile (make release / sign / sdkman /
+  # docker-publish), never in CI.
   #
   # lint:
   #   name: eliya-lint
