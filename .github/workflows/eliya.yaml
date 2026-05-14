@@ -1,0 +1,66 @@
+# Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
+#
+# Eliya CI facade per ADR-00012 sec.2.2.1.
+#
+# Single entry point for ALL Eliya-specific CI work. Invoked by
+# main.yml as a sub-workflow (workflow_call), or manually via
+# workflow_dispatch for a full Eliya-suite run without going through
+# main.yml's full sanity matrix.
+#
+# Architectural symmetry with ADR-00009: main.yml carries ONE
+# delegation line to this file (eliya: uses: ./.github/workflows/eliya.yaml);
+# all Eliya CI substance lives behind this facade and the per-concern
+# eliya-*.yaml files it dispatches to.
+#
+# Future Eliya CI concerns (Phase 2 FIPS-variant validation, Phase 4
+# compliance-profile smoke, license-header check, etc.) plug in here
+# as new jobs - main.yml is never touched again.
+
+name: eliya
+
+on:
+  workflow_call:
+    inputs:
+      bundle-name:
+        description: 'Artifact bundle name from the upstream build job'
+        required: true
+        type: string
+      dry-run:
+        description: 'Skip actual test execution (echo only)'
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      bundle-name:
+        description: 'Bundle artifact to test against (must exist as a recent main.yml artifact, or empty for local-build)'
+        required: false
+        type: string
+        default: linux-x64-release
+      dry-run:
+        description: 'Skip actual test execution (echo only)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  test:
+    name: eliya-test
+    uses: ./.github/workflows/eliya-test.yaml
+    with:
+      bundle-name: ${{ inputs.bundle-name }}
+      dry-run: ${{ inputs.dry-run }}
+
+  # Future Eliya CI concerns plug in below as additional jobs:
+  #
+  # lint:
+  #   name: eliya-lint
+  #   uses: ./.github/workflows/eliya-lint.yaml
+  #
+  # fips-validate:
+  #   name: eliya-fips-validate
+  #   uses: ./.github/workflows/eliya-fips-validate.yaml
+  #
+  # license-check:
+  #   name: eliya-license-check
+  #   uses: ./.github/workflows/eliya-license-check.yaml
