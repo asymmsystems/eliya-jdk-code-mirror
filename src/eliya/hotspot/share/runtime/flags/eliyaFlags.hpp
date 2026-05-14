@@ -5,47 +5,76 @@
  *   ADR-00001 §7.2: Phase 4 reserved profile-value namespace
  *   ADR-00009: source file layout (Eliya counterpart to
  *              src/hotspot/share/runtime/flags/jvmFlagConstraintsRuntime.cpp)
- *   ADR-00010: constraint function location (function body lives in
- *              this file; upstream jvmFlagConstraintsRuntime.cpp carries
- *              ZERO Eliya code post-ISSUE-00001)
+ *   ADR-00010: constraint function location + data-driven Status table
  */
 
 #ifndef ELIYA_SHARE_RUNTIME_FLAGS_ELIYAFLAGS_HPP
 #define ELIYA_SHARE_RUNTIME_FLAGS_ELIYAFLAGS_HPP
 
 #include "memory/allStatic.hpp"
-#include "runtime/flags/jvmFlag.hpp"           // for JVMFlag::Error
-#include "runtime/flags/jvmFlagConstraintList.hpp"  // for ccstr (via jvmFlagAccess includes)
+#include "runtime/flags/jvmFlag.hpp"
 
-// Eliya-side semantic logic for EliyaProfile constraint validation.
+// Eliya-side semantic logic for EliyaProfile constraint validation and
+// profile-activation dispatch, organised data-driven per ADR-00010.
 //
-// Per ADR-00010, the function body for EliyaProfileConstraintFunc
-// lives in eliyaFlags.cpp, not in upstream jvmFlagConstraintsRuntime.cpp.
-// The RUNTIME_CONSTRAINTS macro in jvmFlagConstraintsRuntime.hpp
-// generates the declaration; the linker resolves it to the definition
-// in eliyaFlags.cpp.
-//
-// Phase 4 profile additions/activations touch only the data table in
-// eliyaFlags.cpp (KNOWN_PROFILES[]). The function body itself never
-// changes once written.
+// Adding a new profile (Phase 4 activation, Phase 5+ additions, etc.)
+// touches only the data table KNOWN_PROFILES[]. No function body in
+// this file or its .cpp ever changes when profiles change.
 class EliyaFlags : public AllStatic {
 public:
-  // Validate an EliyaProfile=<value> setting at parse time. Returns
-  // JVMFlag::SUCCESS for valid values (None, Production today; Phase 4
-  // profiles when they activate); JVMFlag::VIOLATES_CONSTRAINT for
-  // reserved or unrecognised values, after calling JVMFlag::printError
-  // with a context-appropriate message.
-  //
-  // Currently Commit 1 of ISSUE-00001 (pure code motion) implements this
-  // as a strcmp chain — same as TASK-00001's original body. Commit 2
-  // refactors to the data-driven Status struct + KNOWN_PROFILES[] table
-  // per ADR-00010 §2.1–§2.2.
+  // Outcome of a profile-value lookup. Carries the constraint return
+  // code AND the operator-facing error message template together so
+  // the data table is the single source of truth.
+  struct Status {
+    JVMFlag::Error code;     // SUCCESS or VIOLATES_CONSTRAINT
+    const char*    message;  // nullptr (no message) or printf-format with %s
+  };
+
+  // Activator function for a profile. Called from activate_profile() at
+  // apply_ergo()-time once the constraint function has accepted the
+  // value. nullptr for non-activator entries (None, Phase 4 reserved,
+  // unrecognised). When Phase 4 activates PCIDSS, the activator field
+  // of its entry switches from nullptr to apply_pcidss_profile.
+  typedef void (*Activator)();
+
+  // One row of the profile registry.
+  struct Entry {
+    const char*   name;
+    const Status& status;
+    Activator     activator;  // nullptr if no activator
+  };
+
+  // Three shared Status singletons. Entries reference these by const&.
+  static const Status ACCEPTED;
+  static const Status RESERVED_PHASE_4;
+  static const Status UNRECOGNIZED;
+
+  // The data table. THE one thing that changes when profiles
+  // activate / deprecate / are added.
+  static const Entry KNOWN_PROFILES[];
+  static const size_t KNOWN_PROFILES_COUNT;
+
+  // Returns the entry for the given profile name, or nullptr if not in
+  // the table. Treats nullptr input as nullptr output (no entry).
+  static const Entry* find(const char* value);
+
+  // Returns the status of a value: ACCEPTED, RESERVED_PHASE_4, or
+  // UNRECOGNIZED (the fallback for values not in the table).
+  static const Status& status_of(const char* value);
+
+  // Validate at parse time (called from EliyaProfileConstraintFunc).
+  // Reads the data table; never changes when profiles change.
   static JVMFlag::Error validate_profile(ccstr value, bool verbose);
+
+  // Activate at apply_ergo() time (called from Eliya::apply()).
+  // Looks up the entry's activator and invokes it if non-null.
+  // The function body never changes when profiles change.
+  static void activate_profile(const char* value);
 };
 
 // Free-function declaration matching the RUNTIME_CONSTRAINTS macro
-// expansion in jvmFlagConstraintsRuntime.hpp. The definition lives in
-// eliyaFlags.cpp; the linker resolves the macro-generated declaration
+// expansion in jvmFlagConstraintsRuntime.hpp. Definition lives in
+// eliyaFlags.cpp; linker resolves the macro-generated declaration
 // to that definition.
 JVMFlag::Error EliyaProfileConstraintFunc(ccstr value, bool verbose);
 
