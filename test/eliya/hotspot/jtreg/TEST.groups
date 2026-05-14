@@ -1,0 +1,11 @@
+# Eliya JTREG test groups — see ADR-00011 §5.2.
+# Fast-feedback subset bundled into upstream tier1 via platform repo's
+# Makefile (`make test-tier1` at platform level forwards both).
+
+eliya-tier1 = \
+  runtime/Eliya/
+
+# Full Eliya suite (currently identical to tier1; placeholder for future
+# Phase 1.5 / Phase 4 expansion).
+eliya-all = \
+  runtime/Eliya/
