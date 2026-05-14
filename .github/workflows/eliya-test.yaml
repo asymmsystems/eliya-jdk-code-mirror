@@ -1,0 +1,88 @@
+# Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
+#
+# Eliya JTREG test runner per ADR-00012 sec.2.2.2.
+#
+# Runs the Eliya-specific JTREG suite under test/eliya/hotspot/jtreg/
+# per ADR-00011. Reuses upstream's .github/actions/get-jtreg/ composite
+# action to install the JTREG binary (no duplication).
+#
+# Invoked by eliya.yaml as part of the Eliya facade (which is itself
+# invoked by main.yml). Does NOT have its own push or pull_request
+# trigger - it's a workflow_call subroutine only.
+
+name: eliya-test
+
+on:
+  workflow_call:
+    inputs:
+      bundle-name:
+        description: 'Artifact bundle name to test against (from upstream main.yml build job)'
+        required: true
+        type: string
+      dry-run:
+        description: 'Skip actual jtreg execution (echo only)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  jtreg:
+    name: jtreg test/eliya/
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 'Checkout sources'
+        uses: actions/checkout@v4
+        with:
+          # Sparse checkout: we only need the Eliya test tree + the
+          # composite action used to install jtreg.
+          sparse-checkout: |
+            .github
+            test/eliya
+
+      - name: 'Download built JDK bundle'
+        if: ${{ !inputs.dry-run }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.bundle-name }}
+          path: bundle/
+
+      - name: 'Extract JDK bundle'
+        if: ${{ !inputs.dry-run }}
+        run: |
+          set -euxo pipefail
+          mkdir -p jdk
+          tar -xf bundle/jdk-*.tar.gz -C jdk --strip-components=1
+          export JAVA_HOME="$PWD/jdk"
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          "$JAVA_HOME/bin/java" -version
+
+      - name: 'Install JTReg'
+        if: ${{ !inputs.dry-run }}
+        uses: ./.github/actions/get-jtreg
+        with:
+          platform: linux-x64
+
+      - name: 'Run Eliya JTREG suite (test/eliya/hotspot/jtreg/, group eliya-tier1)'
+        if: ${{ !inputs.dry-run }}
+        run: |
+          set -euxo pipefail
+          jtreg -jdk:"$JAVA_HOME" \
+                -dir:test/eliya/hotspot/jtreg/ \
+                -groups:eliya-tier1 \
+                -reportDir:jtreg-report \
+                -workDir:jtreg-work \
+                -verbose:summary
+
+      - name: 'Dry-run notice'
+        if: ${{ inputs.dry-run }}
+        run: |
+          echo "Dry run requested - skipping jtreg execution."
+          echo "Would have run: jtreg -jdk:\$JAVA_HOME -dir:test/eliya/hotspot/jtreg/ -groups:eliya-tier1"
+
+      - name: 'Upload Eliya JTREG report'
+        if: ${{ !inputs.dry-run && (success() || failure()) }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: eliya-jtreg-report
+          path: jtreg-report/
+          retention-days: 7
