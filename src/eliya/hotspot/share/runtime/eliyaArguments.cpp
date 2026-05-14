@@ -83,12 +83,11 @@ static const char* platform_default_base_path() {
 }
 
 // Resolve the diagnostic base path.
-// Commit 1 of ISSUE-00001: env → platform default.
-// Commit 3 of ISSUE-00001 (after ADR-00006 §2.2 amendment): adds the
-// -Deliya.diagnostic.path= sysprop step between env and platform default.
+// Per ADR-00006 §2.2 (amended): env → sysprop → platform default.
+// Three steps in symmetry with service and replica resolution.
 static const char* resolve_eliya_base_path() {
   return resolve_chain("ELIYA_DIAGNOSTIC_PATH",
-                       /* sysprop_key (added in Commit 3) */ nullptr,
+                       "eliya.diagnostic.path",
                        /* include_hostname */ false,
                        platform_default_base_path());
 }
