@@ -22,10 +22,11 @@
 
 #include "runtime/eliyaArguments.hpp"
 
-#include "runtime/arguments.hpp"   // Arguments::PropertyList_get_value, system_properties
-#include "runtime/globals.hpp"     // EliyaProfile, EliyaConflictCheck, FLAG_SET_ERGO, etc.
-#include "memory/allocation.hpp"   // NEW_C_HEAP_ARRAY
-#include "utilities/ostream.hpp"   // jio_snprintf
+#include "runtime/arguments.hpp"            // Arguments::PropertyList_get_value, system_properties
+#include "runtime/globals.hpp"              // EliyaProfile, EliyaConflictCheck (flag declarations only)
+#include "runtime/globals_extension.hpp"    // FLAG_SET_ERGO, FLAG_IS_CMDLINE (flag setter macros)
+#include "memory/allocation.hpp"            // NEW_C_HEAP_ARRAY
+#include "utilities/ostream.hpp"            // jio_snprintf
 
 #include <cstring>
 #include <cstdlib>
