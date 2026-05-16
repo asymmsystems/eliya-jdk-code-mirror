@@ -41,7 +41,7 @@ public class EliyaDiagnosticPathTest {
         System.arraycopy(jvmArgs, 0, cmd, 1, jvmArgs.length);
         cmd[cmd.length - 1] = "-version";
 
-        ProcessBuilder pb = ProcessTools.createTestJvm(cmd);
+        ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(cmd);
         if (env != null) pb.environment().putAll(env);
         OutputAnalyzer out = new OutputAnalyzer(pb.start());
         out.shouldHaveExitValue(0);

@@ -1,7 +1,7 @@
-# Eliya JTREG test root — see asymm.systems/product/eliya
+# Eliya JTREG test root - see asymm.systems/product/eliya
 # Per ADR-00011 (test layout): this is the Eliya counterpart to
 # test/hotspot/jtreg/TEST.ROOT. Tests under this root validate
-# Eliya-specific behaviour. NOT a TCK; see ADR-00011 §2.6.
+# Eliya-specific behaviour. NOT a TCK; see ADR-00011 sec.2.6.
 
 # Test framework version (matches upstream test/hotspot/jtreg/TEST.ROOT)
 requiredVersion=4.2 b13
@@ -14,3 +14,9 @@ keys=eliya
 
 # Reuse the same OS/network restrictions as upstream HotSpot tests
 allowSmartActionArgs=true
+
+# Path to libraries in the topmost test directory, so @library /test/lib
+# (jdk.test.lib.process.ProcessTools etc.) resolves to <srcroot>/test/lib.
+# Upstream test/hotspot/jtreg/TEST.ROOT uses ../../../ ; the Eliya root
+# test/eliya/hotspot/jtreg/ is one level deeper, hence ../../../../ .
+external.lib.roots = ../../../../
