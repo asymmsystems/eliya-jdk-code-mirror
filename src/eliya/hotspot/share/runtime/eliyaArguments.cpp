@@ -188,7 +188,16 @@ static char* build_path(Category cat, const char* filename = nullptr) {
   const char* r_val = include_replica ? replica : "";
 
   const char* file_suffix = (filename != nullptr) ? filename : "";
-  const char* file_sep    = (filename != nullptr) ? ""       : "/";
+  // file_sep is ALWAYS "/" - it is the separator between <category>
+  // and what follows it. The format string at the snprintf below
+  // assembles "<category><file_sep><file_suffix>"; we need:
+  //   file form:  "<category>/<filename>"      (file_sep="/", file_suffix=name)
+  //   dir form:   "<category>/"                (file_sep="/", file_suffix="")
+  // An earlier draft conditioned file_sep on filename!=nullptr (set
+  // "" for file form, "/" for dir form) - that produced
+  // ".../crashhs_err_pid%p.log" with the slash missing between
+  // category and filename, surfaced 2026-05-20 by task/resume/06 §3.
+  const char* file_sep    = "/";
   // file form: "base/service[/replica]/category/<filename>"  (no trailing slash)
   // dir form:  "base/service[/replica]/category/"             (trailing slash)
 
