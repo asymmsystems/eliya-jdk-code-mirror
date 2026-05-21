@@ -238,6 +238,13 @@ void EliyaArguments::apply_production_profile() {
   if (!FLAG_IS_CMDLINE(HeapDumpPath)) {
     FLAG_SET_ERGO(HeapDumpPath, build_path(Category::HEAP_DUMPS));
   }
+  // ExitOnOutOfMemoryError - ADR-00001 sec.2.4 item 4 ("Exit on OOM").
+  // Quarkus-recommended pair with HeapDumpOnOOM: dump first, then exit
+  // cleanly rather than leaving the JVM in an undefined state
+  // (research-synthesis sec.1.2.2). Was missing 2026-05-20.
+  if (!FLAG_IS_CMDLINE(ExitOnOutOfMemoryError)) {
+    FLAG_SET_ERGO(ExitOnOutOfMemoryError, true);
+  }
 
   if (!FLAG_IS_CMDLINE(NativeMemoryTracking)) {
     FLAG_SET_ERGO(NativeMemoryTracking, "summary");
