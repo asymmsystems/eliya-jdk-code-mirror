@@ -27,7 +27,7 @@
 #include "runtime/globals.hpp"              // EliyaProfile, EliyaConflictCheck (flag declarations only)
 #include "runtime/globals_extension.hpp"    // FLAG_SET_ERGO, FLAG_IS_CMDLINE (flag setter macros)
 #include "memory/allocation.hpp"            // NEW_C_HEAP_ARRAY
-#include "utilities/ostream.hpp"            // jio_snprintf
+#include "jvm.h"                            // jio_snprintf (transitively via jvm_io.h)
 
 #include <cstring>
 #include <cstdlib>
