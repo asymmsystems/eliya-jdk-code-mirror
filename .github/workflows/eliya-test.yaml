@@ -62,22 +62,24 @@ jobs:
         with:
           platform: linux-x64
 
-      - name: 'Run Eliya JTREG suite (test/eliya/hotspot/jtreg/, group eliya-tier1)'
+      - name: 'Run Eliya JTREG suite (test/eliya/hotspot/jtreg/, group eliya_tier1)'
         if: ${{ !inputs.dry-run }}
         run: |
           set -euxo pipefail
+          # jtreg has no -groups: option; a group is the positional
+          # test-spec <testdir>:<group>. Group names cannot contain '-'
+          # (jtreg: "invalid name for group"); hence eliya_tier1.
           jtreg -jdk:"$JAVA_HOME" \
-                -dir:test/eliya/hotspot/jtreg/ \
-                -groups:eliya-tier1 \
                 -reportDir:jtreg-report \
                 -workDir:jtreg-work \
-                -verbose:summary
+                -verbose:summary \
+                "test/eliya/hotspot/jtreg/:eliya_tier1"
 
       - name: 'Dry-run notice'
         if: ${{ inputs.dry-run }}
         run: |
           echo "Dry run requested - skipping jtreg execution."
-          echo "Would have run: jtreg -jdk:\$JAVA_HOME -dir:test/eliya/hotspot/jtreg/ -groups:eliya-tier1"
+          echo "Would have run: jtreg -jdk:\$JAVA_HOME -verbose:summary test/eliya/hotspot/jtreg/:eliya_tier1"
 
       - name: 'Upload Eliya JTREG report'
         if: ${{ !inputs.dry-run && (success() || failure()) }}

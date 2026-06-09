@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
+ * @author Fahim Farook
  */
 
 /*
@@ -35,14 +36,14 @@ public class EliyaProfileValidation {
     public static void main(String[] args) throws Exception {
         // 1. Accepted values produce a successful version banner.
         for (String accepted : ACCEPTED) {
-            OutputAnalyzer out = ProcessTools.executeTestJvm(
+            OutputAnalyzer out = ProcessTools.executeTestJava(
                 "-XX:EliyaProfile=" + accepted, "-version");
             out.shouldHaveExitValue(0);
         }
 
         // 2. All 10 Phase 4 reserved names rejected with "reserved for Phase 4".
         for (String reserved : PHASE_4_RESERVED) {
-            OutputAnalyzer out = ProcessTools.executeTestJvm(
+            OutputAnalyzer out = ProcessTools.executeTestJava(
                 "-XX:EliyaProfile=" + reserved, "-version");
             out.shouldNotHaveExitValue(0);
             out.shouldContain("reserved for Phase 4");
@@ -51,32 +52,41 @@ public class EliyaProfileValidation {
         }
 
         // 3. Unrecognized value produces the generic rejection.
-        OutputAnalyzer out = ProcessTools.executeTestJvm(
+        OutputAnalyzer out = ProcessTools.executeTestJava(
             "-XX:EliyaProfile=Foobar", "-version");
         out.shouldNotHaveExitValue(0);
         out.shouldContain("Unrecognized value Foobar");
 
         // 4. No EliyaProfile flag specified: JVM starts successfully AND the
-        //    Production-profile defaults are NOT activated. Specifically,
-        //    NativeMemoryTracking and UnlockDiagnosticVMOptions stay at
-        //    their upstream defaults (off/false) rather than the
-        //    {ergonomic} values the Production activator would set.
-        out = ProcessTools.executeTestJvm("-XX:+PrintFlagsFinal", "-version");
+        //    Production-profile defaults are NOT activated. The discriminator
+        //    is the {ergonomic} marker, not the raw value: when None, the
+        //    apply_production_profile() activator never runs, so none of the
+        //    flags it would FLAG_SET_ERGO carry {ergonomic}.
+        //
+        //    Note: UnlockDiagnosticVMOptions is itself a {diagnostic} flag,
+        //    so -XX:+PrintFlagsFinal does NOT list it at all unless it is
+        //    already unlocked. Asserting "= false" can therefore never match
+        //    in the default case (the line is absent, not false). The correct
+        //    negative check is "not ergonomically activated".
+        out = ProcessTools.executeTestJava("-XX:+PrintFlagsFinal", "-version");
         out.shouldHaveExitValue(0);
         // EliyaProfile flag itself is present with default value "None".
         out.shouldMatch("ccstr\\s+EliyaProfile\\s*=\\s*None");
         // NativeMemoryTracking should be off (upstream default), not "summary"
         // which is what the Production activator would set ergonomically.
         out.shouldMatch("ccstr\\s+NativeMemoryTracking\\s*=\\s*off");
-        // UnlockDiagnosticVMOptions should be false (upstream default).
-        out.shouldMatch("bool\\s+UnlockDiagnosticVMOptions\\s*=\\s*false");
+        // Production would FLAG_SET_ERGO UnlockDiagnosticVMOptions=true; with
+        // None it must not appear ergonomically activated.
+        out.shouldNotMatch("UnlockDiagnosticVMOptions.*\\{ergonomic\\}");
+        out.shouldNotMatch("HeapDumpOnOutOfMemoryError.*\\{ergonomic\\}");
 
         // 5. Explicit EliyaProfile=None: identical to omitting the flag.
-        out = ProcessTools.executeTestJvm(
+        out = ProcessTools.executeTestJava(
             "-XX:EliyaProfile=None", "-XX:+PrintFlagsFinal", "-version");
         out.shouldHaveExitValue(0);
         out.shouldMatch("ccstr\\s+NativeMemoryTracking\\s*=\\s*off");
-        out.shouldMatch("bool\\s+UnlockDiagnosticVMOptions\\s*=\\s*false");
+        out.shouldNotMatch("UnlockDiagnosticVMOptions.*\\{ergonomic\\}");
+        out.shouldNotMatch("HeapDumpOnOutOfMemoryError.*\\{ergonomic\\}");
 
         System.out.println("EliyaProfileValidation: all assertions passed.");
     }

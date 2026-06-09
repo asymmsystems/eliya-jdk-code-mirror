@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
+ * @author Fahim Farook
  *
  * Eliya - see asymm.systems/product/eliya
  *   ADR-00001: flag taxonomy
@@ -22,10 +23,11 @@
 
 #include "runtime/eliyaArguments.hpp"
 
-#include "runtime/arguments.hpp"   // Arguments::PropertyList_get_value, system_properties
-#include "runtime/globals.hpp"     // EliyaProfile, EliyaConflictCheck, FLAG_SET_ERGO, etc.
-#include "memory/allocation.hpp"   // NEW_C_HEAP_ARRAY
-#include "utilities/ostream.hpp"   // jio_snprintf
+#include "runtime/arguments.hpp"            // Arguments::PropertyList_get_value, system_properties
+#include "runtime/globals.hpp"              // EliyaProfile, EliyaConflictCheck (flag declarations only)
+#include "runtime/globals_extension.hpp"    // FLAG_SET_ERGO, FLAG_IS_CMDLINE (flag setter macros)
+#include "memory/allocation.hpp"            // NEW_C_HEAP_ARRAY
+#include "jvm.h"                            // jio_snprintf (transitively via jvm_io.h)
 
 #include <cstring>
 #include <cstdlib>
@@ -186,7 +188,16 @@ static char* build_path(Category cat, const char* filename = nullptr) {
   const char* r_val = include_replica ? replica : "";
 
   const char* file_suffix = (filename != nullptr) ? filename : "";
-  const char* file_sep    = (filename != nullptr) ? ""       : "/";
+  // file_sep is ALWAYS "/" - it is the separator between <category>
+  // and what follows it. The format string at the snprintf below
+  // assembles "<category><file_sep><file_suffix>"; we need:
+  //   file form:  "<category>/<filename>"      (file_sep="/", file_suffix=name)
+  //   dir form:   "<category>/"                (file_sep="/", file_suffix="")
+  // An earlier draft conditioned file_sep on filename!=nullptr (set
+  // "" for file form, "/" for dir form) - that produced
+  // ".../crashhs_err_pid%p.log" with the slash missing between
+  // category and filename, surfaced 2026-05-20 by task/resume/06 §3.
+  const char* file_sep    = "/";
   // file form: "base/service[/replica]/category/<filename>"  (no trailing slash)
   // dir form:  "base/service[/replica]/category/"             (trailing slash)
 
@@ -235,6 +246,12 @@ void EliyaArguments::apply_production_profile() {
   }
   if (!FLAG_IS_CMDLINE(HeapDumpPath)) {
     FLAG_SET_ERGO(HeapDumpPath, build_path(Category::HEAP_DUMPS));
+  }
+  // ExitOnOutOfMemoryError - ADR-00001 sec.2.4 item 4 ("Exit on OOM").
+  // Quarkus-recommended pair with HeapDumpOnOOM: dump first, then exit
+  // cleanly rather than leaving the JVM in an undefined state.
+  if (!FLAG_IS_CMDLINE(ExitOnOutOfMemoryError)) {
+    FLAG_SET_ERGO(ExitOnOutOfMemoryError, true);
   }
 
   if (!FLAG_IS_CMDLINE(NativeMemoryTracking)) {

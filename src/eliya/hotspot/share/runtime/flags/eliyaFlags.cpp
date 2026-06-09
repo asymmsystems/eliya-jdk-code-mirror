@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
+ * @author Fahim Farook
  *
  * Eliya - see asymm.systems/product/eliya
  *   ADR-00001 sec.7.2: Phase 4 reserved profile-value namespace
@@ -94,7 +95,17 @@ const EliyaFlags::Status& EliyaFlags::status_of(const char* value) {
 // ============================================================
 JVMFlag::Error EliyaFlags::validate_profile(ccstr value, bool verbose) {
   const Status& s = status_of(value);
-  if (s.message != nullptr) JVMFlag::printError(verbose, s.message, value);
+  if (s.message != nullptr) {
+    // s.message is a string literal pulled from the static KNOWN_PROFILES
+    // table (RESERVED_PHASE_4 / UNRECOGNIZED Status instances). Compiler
+    // can't prove constness at this call site; silence the warning
+    // locally. JVMFlag::printError is ATTRIBUTE_PRINTF(2,3) - it expects
+    // the runtime format-arg shape we provide.
+    PRAGMA_DIAG_PUSH
+    PRAGMA_FORMAT_NONLITERAL_IGNORED
+    JVMFlag::printError(verbose, s.message, value);
+    PRAGMA_DIAG_POP
+  }
   return s.code;
 }
 
