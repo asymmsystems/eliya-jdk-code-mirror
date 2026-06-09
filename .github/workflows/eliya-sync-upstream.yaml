@@ -1,5 +1,4 @@
 # Copyright (c) 2026, Asymm Systems (Pvt) Ltd. All rights reserved.
-# @author Fahim Farook
 #
 # Weekly OpenJDK upstream sync for the Eliya mirror repo.
 #
@@ -11,7 +10,7 @@
 # carries no sync-21 job. If JDK 21 is ever revived (would require
 # ADR-00005 amendment), a parallel sync-21 job can be added at that point.
 
-name: workflow-sync-upstream
+name: eliya-sync-upstream
 
 on:
   schedule:

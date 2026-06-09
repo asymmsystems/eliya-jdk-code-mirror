@@ -33,6 +33,12 @@ ifeq ($(INCLUDE), true)
 # This variable may be added to by a custom extension
 JVM_SRC_ROOTS += $(TOPDIR)/src/hotspot
 
+# Eliya — see asymm.systems/product/eliya (ADR-00009 source file layout).
+# Adds the Eliya mirror tree at src/eliya/hotspot/ so the standard glob
+# expansion (share/, os/*, cpu/*) picks up Eliya source files alongside
+# upstream. One-time addition; never changes again across phases.
+JVM_SRC_ROOTS += $(TOPDIR)/src/eliya/hotspot
+
 JVM_SRC_DIRS += $(call uniq, $(wildcard $(foreach d, $(JVM_SRC_ROOTS), \
         $d/share \
         $d/os/$(HOTSPOT_TARGET_OS) \

@@ -26,9 +26,20 @@
 name: 'OpenJDK GHA Sanity Checks'
 
 on:
+  # Eliya CI policy per ADR-00012 sec.2.1: auto-fire ONLY on push or PR
+  # against long-lived branches (25/develop, 25/main, release/*). Push
+  # to 25/feature/* is dev iteration - free quota. Full upstream matrix
+  # accessible via workflow_dispatch with custom platforms input.
   push:
-    branches-ignore:
-      - pr/*
+    branches:
+      - 25/develop
+      - 25/main
+      - 'release/*'
+  pull_request:
+    branches:
+      - 25/develop
+      - 25/main
+      - 'release/*'
   workflow_dispatch:
     inputs:
       platforms:
@@ -59,8 +70,35 @@ jobs:
     name: 'Prepare the run'
     runs-on: ubuntu-24.04
     env:
-      # List of platforms to exclude by default
-      EXCLUDED_PLATFORMS: 'alpine-linux-x64'
+      # List of platforms to exclude by default on auto-fire (push / PR).
+      # Per ADR-00012 sec.2.1: include Phase 1 platforms + early-signal
+      # checks; exclude Phase 2/3 platforms + low-Eliya-value docs.
+      #
+      # Included on auto-fire:
+      #   linux-x64              - the primary Phase 1 platform
+      #   linux-x64-variants     - HotSpot config regression (hs-nopch,
+      #                            hs-zero, hs-minimal, hs-optimized);
+      #                            Eliya touches HotSpot so config
+      #                            regressions matter
+      #   linux-cross-compile    - aarch64/arm/s390x/ppc64le/riscv64
+      #                            cross-compile signal. Validates Eliya
+      #                            patches compile on Phase 1's
+      #                            linux-aarch64 (Wave 4) and Phase 3
+      #                            platforms before the native builds
+      #                            land
+      # Excluded on auto-fire (run manually via workflow_dispatch when
+      # quarterly CPU validation or platform-readiness check is needed):
+      #   alpine-linux-x64       - Phase 2 distroless prerequisite
+      #   macos-{x64,aarch64}    - Phase 2 demand-gated
+      #   windows-{x64,aarch64}  - Phase 3 demand-gated
+      #   docs                   - Low value for Eliya source validation
+      #
+      # Phase 1's FreeBSD-x64 Research Preview (Wave 5-6) runs on
+      # Cirrus CI per task/resume/11-freebsd-research-preview.md, NOT
+      # in GitHub Actions. When Wave 4's native aarch64 build lands, a
+      # new `build-linux-aarch64` job is added to main.yml and the
+      # cross-compile signal becomes a supplemental check.
+      EXCLUDED_PLATFORMS: 'alpine-linux-x64, macos-x64, macos-aarch64, windows-x64, windows-aarch64, docs'
     outputs:
       linux-x64: ${{ steps.include.outputs.linux-x64 }}
       linux-x64-variants: ${{ steps.include.outputs.linux-x64-variants }}
@@ -449,3 +487,19 @@ jobs:
       runs-on: windows-2025
       dry-run: ${{ needs.prepare.outputs.dry-run == 'true' }}
       debug-suffix: -debug
+
+  # Eliya CI delegation per ADR-00012 sec.2.1 + sec.2.3. ONE line of
+  # Eliya intrusion in main.yml; all Eliya CI substance lives behind
+  # the eliya.yaml facade. Future Eliya CI concerns (FIPS-variant
+  # validation, compliance-profile smoke, etc.) plug into eliya.yaml
+  # without touching this file.
+  eliya:
+    name: eliya
+    needs:
+      - prepare
+      - build-linux-x64
+    uses: ./.github/workflows/eliya.yaml
+    with:
+      bundle-name: linux-x64
+      dry-run: ${{ needs.prepare.outputs.dry-run == 'true' }}
+    if: needs.prepare.outputs.linux-x64 == 'true'
