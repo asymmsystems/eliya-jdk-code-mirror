@@ -30,7 +30,7 @@ public class EliyaDiagnosticPathTest {
      * Run the JVM with the given env + sysprop + flag arguments, asking it
      * to print final flag values, then assert HeapDumpPath contains the
      * expected substring (the resolved base path under which the
-     * heap-dumps directory lives).
+     * heap-dump directory lives).
      */
     private static void assertHeapDumpPathContains(Map<String,String> env,
                                                    String[] jvmArgs,
@@ -81,12 +81,12 @@ public class EliyaDiagnosticPathTest {
         suppression.put("ELIYA_DIAGNOSTIC_PATH", "/tmp/eliya-test-supp");
         suppression.put("ELIYA_SERVICE_NAME", "same");
         suppression.put("ELIYA_REPLICA_NAME", "same");
-        // Two-level path: /tmp/eliya-test-supp/same/heap-dumps/
+        // Two-level path: /tmp/eliya-test-supp/same/heap-dump/
         // (no /same/same/ - replica suppressed)
         assertHeapDumpPathContains(
             suppression,
             new String[]{ "-XX:EliyaProfile=Production" },
-            "/tmp/eliya-test-supp/same/heap-dumps/");
+            "/tmp/eliya-test-supp/same/heap-dump/");
 
         // 4. Three-level path: when replica differs from service.
         Map<String,String> threeLvl = new HashMap<>();
@@ -96,7 +96,7 @@ public class EliyaDiagnosticPathTest {
         assertHeapDumpPathContains(
             threeLvl,
             new String[]{ "-XX:EliyaProfile=Production" },
-            "/tmp/eliya-test-3l/billing/billing-pod-xk29/heap-dumps/");
+            "/tmp/eliya-test-3l/billing/billing-pod-xk29/heap-dump/");
 
         System.out.println("EliyaDiagnosticPathTest: all assertions passed.");
     }

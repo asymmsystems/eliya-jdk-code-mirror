@@ -138,7 +138,7 @@ namespace {
 // "profiling" for async-profiler integration) means appending a row
 // here and an entry to CATEGORY_NAMES; no function bodies change.
 enum class Category : size_t {
-  HEAP_DUMPS = 0,
+  HEAP_DUMP = 0,
   GC,
   CRASH,
   NMT,
@@ -148,7 +148,7 @@ enum class Category : size_t {
 
 // Indexed by Category enum; static_assert below guards against drift.
 constexpr const char* CATEGORY_NAMES[] = {
-  "heap-dumps",  // HEAP_DUMPS
+  "heap-dump",  // HEAP_DUMP
   "gc",          // GC
   "crash",       // CRASH
   "nmt",         // NMT
@@ -245,7 +245,7 @@ void EliyaArguments::apply_production_profile() {
     FLAG_SET_ERGO(HeapDumpOnOutOfMemoryError, true);
   }
   if (!FLAG_IS_CMDLINE(HeapDumpPath)) {
-    FLAG_SET_ERGO(HeapDumpPath, build_path(Category::HEAP_DUMPS));
+    FLAG_SET_ERGO(HeapDumpPath, build_path(Category::HEAP_DUMP));
   }
   // ExitOnOutOfMemoryError - ADR-00001 sec.2.4 item 4 ("Exit on OOM").
   // Quarkus-recommended pair with HeapDumpOnOOM: dump first, then exit
