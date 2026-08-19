@@ -17,6 +17,9 @@ on:
     - cron: '0 0 * * 0'    # Every Sunday at midnight UTC
   workflow_dispatch:
 
+permissions:
+  contents: write    # Required: push 25/upstream + 25/develop; push tags via --follow-tags (per ISSUE-00013)
+
 jobs:
   sync-25:
     runs-on: ubuntu-latest
