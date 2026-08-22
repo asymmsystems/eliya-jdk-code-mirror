@@ -36,7 +36,13 @@ on:
         description: 'Bundle artifact to test against (must exist as a recent main.yml artifact, or empty for local-build)'
         required: false
         type: string
-        default: linux-x64-release
+        # Default matches the artifact name that
+        # .github/actions/upload-bundles/action.yml:92 uploads under
+        # for a release linux-x64 build (bundles-${platform}${debug-suffix}
+        # with empty debug/static/bundle suffixes). Prior default
+        # `linux-x64-release` did not match either the release build
+        # (bundles-linux-x64) or the debug build (bundles-linux-x64-debug).
+        default: bundles-linux-x64
       dry-run:
         description: 'Skip actual test execution (echo only)'
         required: false
