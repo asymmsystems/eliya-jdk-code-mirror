@@ -500,6 +500,13 @@ jobs:
       - build-linux-x64
     uses: ./.github/workflows/eliya.yaml
     with:
-      bundle-name: linux-x64
+      # bundles-linux-x64 matches the artifact name that
+      # .github/actions/upload-bundles/action.yml:92 uploads under:
+      #   bundles-${platform}${debug-suffix}${static-suffix}${bundle-suffix}
+      # For release-build linux-x64, debug/static/bundle suffixes are empty
+      # so the shipped artifact is bundles-linux-x64. The prior value
+      # `linux-x64` mis-matched and eliya-test.yaml's download-artifact
+      # step failed with "Artifact not found for name: linux-x64".
+      bundle-name: bundles-linux-x64
       dry-run: ${{ needs.prepare.outputs.dry-run == 'true' }}
     if: needs.prepare.outputs.linux-x64 == 'true'
