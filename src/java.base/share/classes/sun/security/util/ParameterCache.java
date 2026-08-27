@@ -23,7 +23,7 @@
  * questions.
  */
 
-package sun.security.provider;
+package sun.security.util;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,7 +34,6 @@ import java.security.SecureRandom;
 import java.security.spec.*;
 
 import javax.crypto.spec.DHParameterSpec;
-import sun.security.util.SafeDHParameterSpec;
 
 /**
  * Cache for DSA and DH parameter specs. Used by the KeyPairGenerators

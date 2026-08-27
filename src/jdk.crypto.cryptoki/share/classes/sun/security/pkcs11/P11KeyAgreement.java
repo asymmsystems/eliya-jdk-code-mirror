@@ -124,7 +124,7 @@ final class P11KeyAgreement extends KeyAgreementSpi {
             if (multiPartyAgreement == null) {
                 try {
                     multiPartyAgreement = KeyAgreement.getInstance
-                        ("DH", P11Util.getSunJceProvider());
+                        ("DH", P11Util.getFirstDhProvider(token.provider));
                     multiPartyAgreement.init(privateKey);
                 } catch (NoSuchAlgorithmException e) {
                     throw new InvalidKeyException

@@ -265,7 +265,8 @@ final class P11DHKeyFactory extends P11KeyFactory {
     }
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
-        return KeyFactory.getInstance("DH", P11Util.getSunJceProvider());
+        return KeyFactory.getInstance("DH",
+            P11Util.getFirstDhProvider(token.provider));
     }
 
 }

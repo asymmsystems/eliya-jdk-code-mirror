@@ -30,7 +30,7 @@ import java.security.*;
 import java.security.spec.AlgorithmParameterSpec;
 import javax.crypto.spec.DHParameterSpec;
 
-import sun.security.provider.ParameterCache;
+import sun.security.util.ParameterCache;
 
 import static sun.security.util.SecurityProviderConstants.DEF_DH_KEY_SIZE;
 import static sun.security.util.SecurityProviderConstants.getDefDHPrivateExpSize;

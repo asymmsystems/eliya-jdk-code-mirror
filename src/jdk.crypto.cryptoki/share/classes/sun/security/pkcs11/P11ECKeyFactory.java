@@ -46,18 +46,6 @@ import sun.security.util.ECUtil;
  * @since   1.6
  */
 final class P11ECKeyFactory extends P11KeyFactory {
-    private static Provider sunECprovider;
-
-    private static Provider getSunECProvider() {
-        if (sunECprovider == null) {
-            sunECprovider = Security.getProvider("SunEC");
-            if (sunECprovider == null) {
-                throw new RuntimeException("Cannot load SunEC provider");
-            }
-        }
-
-        return sunECprovider;
-    }
 
     P11ECKeyFactory(Token token, String algorithm) {
         super(token, algorithm);
@@ -331,7 +319,8 @@ final class P11ECKeyFactory extends P11KeyFactory {
     }
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
-        return KeyFactory.getInstance("EC", getSunECProvider());
+        return KeyFactory.getInstance("EC",
+            P11Util.getFirstEcProvider(token.provider));
     }
 
 }

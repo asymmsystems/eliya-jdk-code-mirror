@@ -33,6 +33,7 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.DSAParameterSpec;
 
 import sun.security.jca.JCAUtil;
+import sun.security.util.ParameterCache;
 import static sun.security.util.SecurityProviderConstants.DEF_DSA_KEY_SIZE;
 import static sun.security.util.SecurityProviderConstants.getDefDSASubprimeSize;
 

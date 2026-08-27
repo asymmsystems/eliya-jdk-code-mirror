@@ -32,6 +32,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.security.*;
 
+import sun.security.jca.Providers;
 import sun.security.pkcs11.wrapper.PKCS11Exception;
 import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
 
@@ -46,12 +47,106 @@ public final class P11Util {
     // A cleaner, shared within this module.
     public static final Cleaner cleaner = Cleaner.create();
 
-    private static final Object LOCK = new Object();
-
-    private static volatile Provider sun, sunRsaSign, sunJce;
-
     private P11Util() {
         // empty
+    }
+
+    /**
+     * Returns the first JCA-registered provider that offers the service
+     * {@code serviceType.algorithm} and is not the {@code excluding} provider.
+     *
+     * <p>Intended for SunPKCS11-internal fallback lookups where SunPKCS11
+     * needs a software delegate for parameter marshalling or key translation.
+     * Callers pass their owning {@code SunPKCS11} instance as {@code excluding}
+     * to prevent lookup-recursion when SunPKCS11 itself is registered offering
+     * the same JCA service.
+     *
+     * <p>The result is not cached in {@code P11Util}. {@code java.security}
+     * exposes no invalidation hook for the JCA provider list, so any
+     * P11Util-side cache would be silently stale on runtime
+     * {@link Security#addProvider(Provider)},
+     * {@link Security#removeProvider(String)}, or
+     * {@link Security#insertProviderAt(Provider, int)} calls. The
+     * {@link Providers#getProviderList() ProviderList} that this scan
+     * iterates is itself cached by JCA and rebuilt only on such mutations.
+     *
+     * @param serviceType JCA service type, e.g. "KeyFactory", "AlgorithmParameters"
+     * @param algorithm   algorithm name, e.g. "DH", "RSA"
+     * @param excluding   a provider instance to skip; may be null to skip
+     *                    nothing
+     * @throws ProviderException if no non-excluded provider offers the
+     *         requested capability
+     */
+    private static Provider firstProviderFor(String serviceType, String algorithm,
+            Provider excluding) throws ProviderException {
+        for (Provider p : Providers.getProviderList().providers()) {
+            if (p == excluding) {
+                continue;
+            }
+            if (p.getService(serviceType, algorithm) != null) {
+                return p;
+            }
+        }
+        throw new ProviderException("No JCA provider offers "
+                + serviceType + "." + algorithm
+                + (excluding == null ? ""
+                        : " (excluding " + excluding.getName() + ")"));
+    }
+
+    /**
+     * Returns the first JCA-registered provider that offers
+     * {@code AlgorithmParameters.<algorithm>} and is not the {@code excluding}
+     * provider.
+     *
+     * @see #firstProviderFor(String, String, Provider)
+     */
+    static Provider getFirstAlgorithmParametersProvider(String algorithm,
+            Provider excluding) throws ProviderException {
+        return firstProviderFor("AlgorithmParameters", algorithm, excluding);
+    }
+
+    /**
+     * Returns the first JCA-registered provider that offers {@code KeyFactory.DH}
+     * and is not the {@code excluding} provider.
+     *
+     * @see #firstProviderFor(String, String, Provider)
+     */
+    static Provider getFirstDhProvider(Provider excluding)
+            throws ProviderException {
+        return firstProviderFor("KeyFactory", "DH", excluding);
+    }
+
+    /**
+     * Returns the first JCA-registered provider that offers {@code KeyFactory.RSA}
+     * and is not the {@code excluding} provider.
+     *
+     * @see #firstProviderFor(String, String, Provider)
+     */
+    static Provider getFirstRsaProvider(Provider excluding)
+            throws ProviderException {
+        return firstProviderFor("KeyFactory", "RSA", excluding);
+    }
+
+    /**
+     * Returns the first JCA-registered provider that offers {@code KeyFactory.DSA}
+     * and is not the {@code excluding} provider.
+     *
+     * @see #firstProviderFor(String, String, Provider)
+     */
+    static Provider getFirstDsaProvider(Provider excluding)
+            throws ProviderException {
+        return firstProviderFor("KeyFactory", "DSA", excluding);
+    }
+
+    /**
+     * Returns the first JCA-registered provider that offers {@code KeyFactory.EC}
+     * and is not the {@code excluding} provider.
+     *
+     * @see #firstProviderFor(String, String, Provider)
+     */
+    static Provider getFirstEcProvider(Provider excluding)
+            throws ProviderException {
+        return firstProviderFor("KeyFactory", "EC", excluding);
     }
 
     static boolean isNSS(Token token) {
@@ -92,63 +187,6 @@ public final class P11Util {
             passwordBytes.put(i++, (byte) 0);
         }
         return encPassword;
-    }
-
-    static Provider getSunProvider() {
-        Provider p = sun;
-        if (p == null) {
-            synchronized (LOCK) {
-                p = getProvider
-                    (sun, "SUN", "sun.security.provider.Sun");
-                sun = p;
-            }
-        }
-        return p;
-    }
-
-    static Provider getSunRsaSignProvider() {
-        Provider p = sunRsaSign;
-        if (p == null) {
-            synchronized (LOCK) {
-                p = getProvider
-                    (sunRsaSign, "SunRsaSign", "sun.security.rsa.SunRsaSign");
-                sunRsaSign = p;
-            }
-        }
-        return p;
-    }
-
-    static Provider getSunJceProvider() {
-        Provider p = sunJce;
-        if (p == null) {
-            synchronized (LOCK) {
-                p = getProvider
-                    (sunJce, "SunJCE", "com.sun.crypto.provider.SunJCE");
-                sunJce = p;
-            }
-        }
-        return p;
-    }
-
-    @SuppressWarnings("deprecation")
-    private static Provider getProvider(Provider p, String providerName,
-            String className) {
-        if (p != null) {
-            return p;
-        }
-        p = Security.getProvider(providerName);
-        if (p == null) {
-            try {
-                final Class<?> c = Class.forName(className);
-                p = (Provider) c.newInstance();
-            } catch (Exception e) {
-                // Unexpected, as className is not a user but a
-                // P11Util-internal value.
-                throw new ProviderException("Could not find provider " +
-                        providerName, e);
-            }
-        }
-        return p;
     }
 
     static byte[] convert(byte[] input, int offset, int len) {
