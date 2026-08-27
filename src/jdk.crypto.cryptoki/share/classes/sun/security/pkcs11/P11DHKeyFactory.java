@@ -35,7 +35,6 @@ import javax.crypto.spec.*;
 
 import static sun.security.pkcs11.TemplateManager.*;
 import sun.security.pkcs11.wrapper.*;
-import sun.security.util.ProviderLookup;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 /**
@@ -267,8 +266,7 @@ final class P11DHKeyFactory extends P11KeyFactory {
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
         return KeyFactory.getInstance("DH",
-            ProviderLookup.getFirstProviderFor(
-                "KeyFactory", "DH", token.provider));
+            P11Util.getFirstDhProvider(token.provider));
     }
 
 }

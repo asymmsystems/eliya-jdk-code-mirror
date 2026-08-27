@@ -38,7 +38,6 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 import sun.security.util.DerValue;
 import sun.security.util.ECUtil;
-import sun.security.util.ProviderLookup;
 
 /**
  * EC KeyFactory implementation.
@@ -321,8 +320,7 @@ final class P11ECKeyFactory extends P11KeyFactory {
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
         return KeyFactory.getInstance("EC",
-            ProviderLookup.getFirstProviderFor(
-                "KeyFactory", "EC", token.provider));
+            P11Util.getFirstEcProvider(token.provider));
     }
 
 }

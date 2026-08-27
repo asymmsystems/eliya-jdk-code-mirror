@@ -33,7 +33,6 @@ import java.security.spec.*;
 
 import static sun.security.pkcs11.TemplateManager.*;
 import sun.security.pkcs11.wrapper.*;
-import sun.security.util.ProviderLookup;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 /**
@@ -267,8 +266,7 @@ final class P11DSAKeyFactory extends P11KeyFactory {
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
         return KeyFactory.getInstance("DSA",
-            ProviderLookup.getFirstProviderFor(
-                "KeyFactory", "DSA", token.provider));
+            P11Util.getFirstDsaProvider(token.provider));
     }
 
 }

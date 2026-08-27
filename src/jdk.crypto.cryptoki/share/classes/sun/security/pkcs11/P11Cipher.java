@@ -39,7 +39,6 @@ import jdk.internal.access.JavaNioAccess;
 import jdk.internal.access.SharedSecrets;
 import sun.nio.ch.DirectBuffer;
 import sun.security.jca.JCAUtil;
-import sun.security.util.ProviderLookup;
 import sun.security.pkcs11.wrapper.*;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
@@ -295,8 +294,8 @@ final class P11Cipher extends CipherSpi {
         try {
             AlgorithmParameters params =
                     AlgorithmParameters.getInstance(keyAlgorithm,
-                    ProviderLookup.getFirstProviderFor(
-                        "KeyFactory", "DH", token.provider));
+                    P11Util.firstProviderFor(
+                        "AlgorithmParameters", keyAlgorithm, token.provider));
             params.init(ivSpec);
             return params;
         } catch (GeneralSecurityException e) {

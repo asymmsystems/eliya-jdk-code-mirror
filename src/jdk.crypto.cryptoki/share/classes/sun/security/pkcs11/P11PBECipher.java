@@ -40,7 +40,6 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.PBEKeySpec;
 
 import sun.security.jca.JCAUtil;
-import sun.security.util.ProviderLookup;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 import sun.security.pkcs11.wrapper.PKCS11Exception;
 import sun.security.util.PBEUtil;
@@ -107,8 +106,7 @@ final class P11PBECipher extends CipherSpi {
     @Override
     protected AlgorithmParameters engineGetParameters() {
         return pbes2Params.getAlgorithmParameters(blkSize, pbeAlg,
-                ProviderLookup.getFirstProviderFor(
-                    "KeyFactory", "DH", token.provider),
+                P11Util.getFirstDhProvider(token.provider),
                 JCAUtil.getSecureRandom());
     }
 
