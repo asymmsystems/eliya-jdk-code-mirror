@@ -32,6 +32,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.security.*;
 
+import sun.security.jca.Providers;
 import sun.security.pkcs11.wrapper.PKCS11Exception;
 import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
 
@@ -45,17 +46,6 @@ public final class P11Util {
 
     // A cleaner, shared within this module.
     public static final Cleaner cleaner = Cleaner.create();
-
-    // Per-capability caches for the fixed-capability helpers. Each holds the
-    // first-non-excluded provider for its capability. Volatile-read outside
-    // the per-capability lock for the fast path; lock-serialised init on
-    // cache miss. Separate lock objects per capability so a DH init does not
-    // block a concurrent RSA / DSA / EC init.
-    private static final Object DH_LOCK = new Object();
-    private static final Object RSA_LOCK = new Object();
-    private static final Object DSA_LOCK = new Object();
-    private static final Object EC_LOCK = new Object();
-    private static volatile Provider dh, rsa, dsa, ec;
 
     private P11Util() {
         // empty
@@ -71,6 +61,15 @@ public final class P11Util {
      * to prevent lookup-recursion when SunPKCS11 itself is registered offering
      * the same JCA service.
      *
+     * <p>The result is not cached in {@code P11Util}. {@code java.security}
+     * exposes no invalidation hook for the JCA provider list, so any
+     * P11Util-side cache would be silently stale on runtime
+     * {@link Security#addProvider(Provider)},
+     * {@link Security#removeProvider(String)}, or
+     * {@link Security#insertProviderAt(Provider, int)} calls. The
+     * {@link Providers#getProviderList() ProviderList} that this scan
+     * iterates is itself cached by JCA and rebuilt only on such mutations.
+     *
      * @param serviceType JCA service type, e.g. "KeyFactory", "AlgorithmParameters"
      * @param algorithm   algorithm name, e.g. "DH", "RSA"
      * @param excluding   a provider instance to skip; may be null to skip
@@ -80,15 +79,11 @@ public final class P11Util {
      */
     private static Provider firstProviderFor(String serviceType, String algorithm,
             Provider excluding) throws ProviderException {
-        final Provider[] ps = Security.getProviders(serviceType + "." + algorithm);
-        if (ps == null || ps.length == 0) {
-            throw noSuchProvider(serviceType, algorithm, excluding);
-        }
-        if (excluding == null) {
-            return ps[0];
-        }
-        for (Provider p : ps) {
-            if (p != excluding) {
+        for (Provider p : Providers.getProviderList().providers()) {
+            if (p == excluding) {
+                continue;
+            }
+            if (p.getService(serviceType, algorithm) != null) {
                 return p;
             }
         }
@@ -106,9 +101,7 @@ public final class P11Util {
     /**
      * Returns the first JCA-registered provider that offers
      * {@code AlgorithmParameters.<algorithm>} and is not the {@code excluding}
-     * provider. Not cached: {@code algorithm} is a variable in the sole
-     * calling context, so a per-algorithm cache would proliferate keys with
-     * no reuse benefit.
+     * provider.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
@@ -119,78 +112,46 @@ public final class P11Util {
 
     /**
      * Returns the first JCA-registered provider that offers {@code KeyFactory.DH}
-     * and is not the {@code excluding} provider. Result is cached across calls.
+     * and is not the {@code excluding} provider.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
     static Provider getFirstDhProvider(Provider excluding)
             throws ProviderException {
-        Provider p = dh;
-        if (p != null && p != excluding) {
-            return p;
-        }
-        synchronized (DH_LOCK) {
-            p = firstProviderFor("KeyFactory", "DH", excluding);
-            dh = p;
-            return p;
-        }
+        return firstProviderFor("KeyFactory", "DH", excluding);
     }
 
     /**
      * Returns the first JCA-registered provider that offers {@code KeyFactory.RSA}
-     * and is not the {@code excluding} provider. Result is cached across calls.
+     * and is not the {@code excluding} provider.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
     static Provider getFirstRsaProvider(Provider excluding)
             throws ProviderException {
-        Provider p = rsa;
-        if (p != null && p != excluding) {
-            return p;
-        }
-        synchronized (RSA_LOCK) {
-            p = firstProviderFor("KeyFactory", "RSA", excluding);
-            rsa = p;
-            return p;
-        }
+        return firstProviderFor("KeyFactory", "RSA", excluding);
     }
 
     /**
      * Returns the first JCA-registered provider that offers {@code KeyFactory.DSA}
-     * and is not the {@code excluding} provider. Result is cached across calls.
+     * and is not the {@code excluding} provider.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
     static Provider getFirstDsaProvider(Provider excluding)
             throws ProviderException {
-        Provider p = dsa;
-        if (p != null && p != excluding) {
-            return p;
-        }
-        synchronized (DSA_LOCK) {
-            p = firstProviderFor("KeyFactory", "DSA", excluding);
-            dsa = p;
-            return p;
-        }
+        return firstProviderFor("KeyFactory", "DSA", excluding);
     }
 
     /**
      * Returns the first JCA-registered provider that offers {@code KeyFactory.EC}
-     * and is not the {@code excluding} provider. Result is cached across calls.
+     * and is not the {@code excluding} provider.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
     static Provider getFirstEcProvider(Provider excluding)
             throws ProviderException {
-        Provider p = ec;
-        if (p != null && p != excluding) {
-            return p;
-        }
-        synchronized (EC_LOCK) {
-            p = firstProviderFor("KeyFactory", "EC", excluding);
-            ec = p;
-            return p;
-        }
+        return firstProviderFor("KeyFactory", "EC", excluding);
     }
 
     static boolean isNSS(Token token) {
