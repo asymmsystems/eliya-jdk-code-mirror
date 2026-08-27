@@ -46,10 +46,6 @@ public final class P11Util {
     // A cleaner, shared within this module.
     public static final Cleaner cleaner = Cleaner.create();
 
-    // JCA service-type constants used by the capability-lookup helpers below.
-    private static final String KEY_FACTORY = "KeyFactory";
-    private static final String ALGORITHM_PARAMETERS = "AlgorithmParameters";
-
     // Per-capability caches for the fixed-capability helpers. Each holds the
     // first-non-excluded provider for its capability. Volatile is enough - a
     // benign race between concurrent first-callers just repeats the O(N)
@@ -116,7 +112,7 @@ public final class P11Util {
      */
     static Provider getFirstAlgorithmParametersProvider(String algorithm,
             Provider excluding) throws ProviderException {
-        return firstProviderFor(ALGORITHM_PARAMETERS, algorithm, excluding);
+        return firstProviderFor("AlgorithmParameters", algorithm, excluding);
     }
 
     /**
@@ -131,7 +127,7 @@ public final class P11Util {
         if (p != null && p != excluding) {
             return p;
         }
-        p = firstProviderFor(KEY_FACTORY, "DH", excluding);
+        p = firstProviderFor("KeyFactory", "DH", excluding);
         dhProvider = p;
         return p;
     }
@@ -148,7 +144,7 @@ public final class P11Util {
         if (p != null && p != excluding) {
             return p;
         }
-        p = firstProviderFor(KEY_FACTORY, "RSA", excluding);
+        p = firstProviderFor("KeyFactory", "RSA", excluding);
         rsaProvider = p;
         return p;
     }
@@ -165,7 +161,7 @@ public final class P11Util {
         if (p != null && p != excluding) {
             return p;
         }
-        p = firstProviderFor(KEY_FACTORY, "DSA", excluding);
+        p = firstProviderFor("KeyFactory", "DSA", excluding);
         dsaProvider = p;
         return p;
     }
@@ -182,7 +178,7 @@ public final class P11Util {
         if (p != null && p != excluding) {
             return p;
         }
-        p = firstProviderFor(KEY_FACTORY, "EC", excluding);
+        p = firstProviderFor("KeyFactory", "EC", excluding);
         ecProvider = p;
         return p;
     }
