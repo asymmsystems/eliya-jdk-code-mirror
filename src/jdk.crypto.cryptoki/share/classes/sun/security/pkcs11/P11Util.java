@@ -47,9 +47,10 @@ public final class P11Util {
     public static final Cleaner cleaner = Cleaner.create();
 
     // Per-capability caches for the fixed-capability helpers. Each holds the
-    // first-non-excluded provider for its capability. Volatile is enough - a
-    // benign race between concurrent first-callers just repeats the O(N)
-    // lookup once; the result is deterministic.
+    // first-non-excluded provider for its capability. Matches the original
+    // P11Util pattern: volatile-read outside the LOCK for the fast path;
+    // LOCK-serialised init on cache miss.
+    private static final Object LOCK = new Object();
     private static volatile Provider dhProvider, rsaProvider, dsaProvider, ecProvider;
 
     private P11Util() {
@@ -124,9 +125,11 @@ public final class P11Util {
         if (p != null && p != excluding) {
             return p;
         }
-        p = firstProviderFor("KeyFactory", "DH", excluding);
-        dhProvider = p;
-        return p;
+        synchronized (LOCK) {
+            p = firstProviderFor("KeyFactory", "DH", excluding);
+            dhProvider = p;
+            return p;
+        }
     }
 
     /**
@@ -141,9 +144,11 @@ public final class P11Util {
         if (p != null && p != excluding) {
             return p;
         }
-        p = firstProviderFor("KeyFactory", "RSA", excluding);
-        rsaProvider = p;
-        return p;
+        synchronized (LOCK) {
+            p = firstProviderFor("KeyFactory", "RSA", excluding);
+            rsaProvider = p;
+            return p;
+        }
     }
 
     /**
@@ -158,9 +163,11 @@ public final class P11Util {
         if (p != null && p != excluding) {
             return p;
         }
-        p = firstProviderFor("KeyFactory", "DSA", excluding);
-        dsaProvider = p;
-        return p;
+        synchronized (LOCK) {
+            p = firstProviderFor("KeyFactory", "DSA", excluding);
+            dsaProvider = p;
+            return p;
+        }
     }
 
     /**
@@ -175,9 +182,11 @@ public final class P11Util {
         if (p != null && p != excluding) {
             return p;
         }
-        p = firstProviderFor("KeyFactory", "EC", excluding);
-        ecProvider = p;
-        return p;
+        synchronized (LOCK) {
+            p = firstProviderFor("KeyFactory", "EC", excluding);
+            ecProvider = p;
+            return p;
+        }
     }
 
     static boolean isNSS(Token token) {
