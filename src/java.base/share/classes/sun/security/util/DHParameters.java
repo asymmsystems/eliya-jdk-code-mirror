@@ -23,10 +23,9 @@
  * questions.
  */
 
-package com.sun.crypto.provider;
+package sun.security.util;
 
 import java.io.*;
-import sun.security.util.*;
 import java.math.BigInteger;
 import java.security.AlgorithmParametersSpi;
 import java.security.spec.AlgorithmParameterSpec;

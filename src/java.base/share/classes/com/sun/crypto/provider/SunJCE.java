@@ -463,7 +463,7 @@ public final class SunJCE extends Provider {
          * Algorithm Parameter engines
          */
         psA("AlgorithmParameters", "DiffieHellman",
-                "com.sun.crypto.provider.DHParameters", null);
+                "sun.security.util.DHParameters", null);
 
         ps("AlgorithmParameters", "DES",
                 "com.sun.crypto.provider.DESParameters");
@@ -560,7 +560,7 @@ public final class SunJCE extends Provider {
                 "com.sun.crypto.provider.OAEPParameters", null);
 
         psA("AlgorithmParameters", "ChaCha20-Poly1305",
-                "com.sun.crypto.provider.ChaCha20Poly1305Parameters", null);
+                "sun.security.util.ChaCha20Poly1305Parameters", null);
 
         /*
          * Key factories

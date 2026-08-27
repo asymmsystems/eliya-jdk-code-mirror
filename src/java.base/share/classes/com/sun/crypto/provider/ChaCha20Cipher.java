@@ -222,13 +222,13 @@ abstract class ChaCha20Cipher extends CipherSpi {
      * Get the algorithm parameters for this cipher.  For the ChaCha20
      * cipher, this will always return {@code null} as there currently is
      * no {@code AlgorithmParameters} implementation for ChaCha20.  For
-     * ChaCha20-Poly1305, a {@code ChaCha20Poly1305Parameters} object will be
-     * created and initialized with the configured nonce value and returned
-     * to the caller.
+     * ChaCha20-Poly1305, a {@code sun.security.util.ChaCha20Poly1305Parameters}
+     * object will be created and initialized with the configured nonce value
+     * and returned to the caller.
      *
      * @return a {@code null} value if the ChaCha20 cipher is used (mode is
-     * MODE_NONE), or a {@code ChaCha20Poly1305Parameters} object containing
-     * the nonce if the mode is MODE_AEAD.
+     * MODE_NONE), or a {@code sun.security.util.ChaCha20Poly1305Parameters}
+     * object containing the nonce if the mode is MODE_AEAD.
      */
     @Override
     protected AlgorithmParameters engineGetParameters() {
