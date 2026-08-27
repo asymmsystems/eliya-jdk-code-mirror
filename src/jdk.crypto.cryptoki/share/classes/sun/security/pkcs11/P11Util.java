@@ -50,10 +50,7 @@ public final class P11Util {
     // first-non-excluded provider for its capability. Volatile is enough - a
     // benign race between concurrent first-callers just repeats the O(N)
     // lookup once; the result is deterministic.
-    private static volatile Provider dhProvider;
-    private static volatile Provider rsaProvider;
-    private static volatile Provider dsaProvider;
-    private static volatile Provider ecProvider;
+    private static volatile Provider dhProvider, rsaProvider, dsaProvider, ecProvider;
 
     private P11Util() {
         // empty
@@ -76,9 +73,9 @@ public final class P11Util {
      * @throws ProviderException if no non-excluded provider offers the
      *         requested capability
      */
-    static Provider firstProviderFor(String serviceType, String algorithm,
+    private static Provider firstProviderFor(String serviceType, String algorithm,
             Provider excluding) throws ProviderException {
-        Provider[] ps = Security.getProviders(serviceType + "." + algorithm);
+        final Provider[] ps = Security.getProviders(serviceType + "." + algorithm);
         if (ps == null || ps.length == 0) {
             throw noSuchProvider(serviceType, algorithm, excluding);
         }
