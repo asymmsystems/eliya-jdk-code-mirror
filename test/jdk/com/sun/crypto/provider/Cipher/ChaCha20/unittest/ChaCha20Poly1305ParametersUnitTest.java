@@ -27,7 +27,6 @@
  * @library /test/lib
  * @run main ChaCha20Poly1305ParametersUnitTest
  * @summary Unit test for sun.security.util.ChaCha20Poly1305Parameters
- *          (moved from com.sun.crypto.provider per JEP-A / Task 71 Deliverable A).
  */
 
 import java.io.IOException;
