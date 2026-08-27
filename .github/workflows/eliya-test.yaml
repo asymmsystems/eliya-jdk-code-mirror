@@ -33,11 +33,16 @@ jobs:
       - name: 'Checkout sources'
         uses: actions/checkout@v4
         with:
-          # Sparse checkout: we only need the Eliya test tree + the
-          # composite action used to install jtreg.
+          # Sparse checkout: the Eliya test tree, the composite action
+          # used to install jtreg, and the one make/conf file the
+          # upstream .github/actions/config composite action reads
+          # (JTREG_VERSION lookup). Without github-actions.conf the
+          # config action fails with "grep: make/conf/github-actions.conf:
+          # No such file or directory".
           sparse-checkout: |
             .github
             test/eliya
+            make/conf/github-actions.conf
 
       - name: 'Download built JDK bundle'
         if: ${{ !inputs.dry-run }}
