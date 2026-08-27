@@ -87,12 +87,7 @@ public final class P11Util {
                 return p;
             }
         }
-        throw noSuchProvider(serviceType, algorithm, excluding);
-    }
-
-    private static ProviderException noSuchProvider(String serviceType,
-            String algorithm, Provider excluding) {
-        return new ProviderException("No JCA provider offers "
+        throw new ProviderException("No JCA provider offers "
                 + serviceType + "." + algorithm
                 + (excluding == null ? ""
                         : " (excluding " + excluding.getName() + ")"));
