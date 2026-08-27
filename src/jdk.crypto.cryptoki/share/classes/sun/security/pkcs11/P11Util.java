@@ -47,11 +47,15 @@ public final class P11Util {
     public static final Cleaner cleaner = Cleaner.create();
 
     // Per-capability caches for the fixed-capability helpers. Each holds the
-    // first-non-excluded provider for its capability. Matches the original
-    // P11Util pattern: volatile-read outside the LOCK for the fast path;
-    // LOCK-serialised init on cache miss.
-    private static final Object LOCK = new Object();
-    private static volatile Provider dhProvider, rsaProvider, dsaProvider, ecProvider;
+    // first-non-excluded provider for its capability. Volatile-read outside
+    // the per-capability lock for the fast path; lock-serialised init on
+    // cache miss. Separate lock objects per capability so a DH init does not
+    // block a concurrent RSA / DSA / EC init.
+    private static final Object DH_LOCK = new Object();
+    private static final Object RSA_LOCK = new Object();
+    private static final Object DSA_LOCK = new Object();
+    private static final Object EC_LOCK = new Object();
+    private static volatile Provider dh, rsa, dsa, ec;
 
     private P11Util() {
         // empty
@@ -121,13 +125,13 @@ public final class P11Util {
      */
     static Provider getFirstDhProvider(Provider excluding)
             throws ProviderException {
-        Provider p = dhProvider;
+        Provider p = dh;
         if (p != null && p != excluding) {
             return p;
         }
-        synchronized (LOCK) {
+        synchronized (DH_LOCK) {
             p = firstProviderFor("KeyFactory", "DH", excluding);
-            dhProvider = p;
+            dh = p;
             return p;
         }
     }
@@ -140,13 +144,13 @@ public final class P11Util {
      */
     static Provider getFirstRsaProvider(Provider excluding)
             throws ProviderException {
-        Provider p = rsaProvider;
+        Provider p = rsa;
         if (p != null && p != excluding) {
             return p;
         }
-        synchronized (LOCK) {
+        synchronized (RSA_LOCK) {
             p = firstProviderFor("KeyFactory", "RSA", excluding);
-            rsaProvider = p;
+            rsa = p;
             return p;
         }
     }
@@ -159,13 +163,13 @@ public final class P11Util {
      */
     static Provider getFirstDsaProvider(Provider excluding)
             throws ProviderException {
-        Provider p = dsaProvider;
+        Provider p = dsa;
         if (p != null && p != excluding) {
             return p;
         }
-        synchronized (LOCK) {
+        synchronized (DSA_LOCK) {
             p = firstProviderFor("KeyFactory", "DSA", excluding);
-            dsaProvider = p;
+            dsa = p;
             return p;
         }
     }
@@ -178,13 +182,13 @@ public final class P11Util {
      */
     static Provider getFirstEcProvider(Provider excluding)
             throws ProviderException {
-        Provider p = ecProvider;
+        Provider p = ec;
         if (p != null && p != excluding) {
             return p;
         }
-        synchronized (LOCK) {
+        synchronized (EC_LOCK) {
             p = firstProviderFor("KeyFactory", "EC", excluding);
-            ecProvider = p;
+            ec = p;
             return p;
         }
     }
