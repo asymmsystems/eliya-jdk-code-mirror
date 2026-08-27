@@ -34,6 +34,7 @@ import java.security.*;
 
 import sun.security.pkcs11.wrapper.PKCS11Exception;
 import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
+import sun.security.util.ProviderLookup;
 
 /**
  * Collection of static utility methods.
@@ -98,8 +99,12 @@ public final class P11Util {
         Provider p = sun;
         if (p == null) {
             synchronized (LOCK) {
-                p = getProvider
-                    (sun, "SUN", "sun.security.provider.Sun");
+                p = ProviderLookup.getFirstProviderFor(
+                    "KeyPairGenerator", "DSA");
+                if (p == null) {
+                    throw new ProviderException(
+                        "No JCA provider offers KeyPairGenerator.DSA");
+                }
                 sun = p;
             }
         }
@@ -110,8 +115,11 @@ public final class P11Util {
         Provider p = sunRsaSign;
         if (p == null) {
             synchronized (LOCK) {
-                p = getProvider
-                    (sunRsaSign, "SunRsaSign", "sun.security.rsa.SunRsaSign");
+                p = ProviderLookup.getFirstProviderFor("KeyFactory", "RSA");
+                if (p == null) {
+                    throw new ProviderException(
+                        "No JCA provider offers KeyFactory.RSA");
+                }
                 sunRsaSign = p;
             }
         }
@@ -122,30 +130,12 @@ public final class P11Util {
         Provider p = sunJce;
         if (p == null) {
             synchronized (LOCK) {
-                p = getProvider
-                    (sunJce, "SunJCE", "com.sun.crypto.provider.SunJCE");
+                p = ProviderLookup.getFirstProviderFor("KeyFactory", "DH");
+                if (p == null) {
+                    throw new ProviderException(
+                        "No JCA provider offers KeyFactory.DH");
+                }
                 sunJce = p;
-            }
-        }
-        return p;
-    }
-
-    @SuppressWarnings("deprecation")
-    private static Provider getProvider(Provider p, String providerName,
-            String className) {
-        if (p != null) {
-            return p;
-        }
-        p = Security.getProvider(providerName);
-        if (p == null) {
-            try {
-                final Class<?> c = Class.forName(className);
-                p = (Provider) c.newInstance();
-            } catch (Exception e) {
-                // Unexpected, as className is not a user but a
-                // P11Util-internal value.
-                throw new ProviderException("Could not find provider " +
-                        providerName, e);
             }
         }
         return p;

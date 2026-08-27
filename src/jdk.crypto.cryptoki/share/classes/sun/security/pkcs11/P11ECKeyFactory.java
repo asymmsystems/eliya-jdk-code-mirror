@@ -38,6 +38,7 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 import sun.security.util.DerValue;
 import sun.security.util.ECUtil;
+import sun.security.util.ProviderLookup;
 
 /**
  * EC KeyFactory implementation.
@@ -50,9 +51,11 @@ final class P11ECKeyFactory extends P11KeyFactory {
 
     private static Provider getSunECProvider() {
         if (sunECprovider == null) {
-            sunECprovider = Security.getProvider("SunEC");
+            sunECprovider = ProviderLookup.getFirstProviderFor(
+                "KeyFactory", "EC");
             if (sunECprovider == null) {
-                throw new RuntimeException("Cannot load SunEC provider");
+                throw new RuntimeException(
+                    "No JCA provider offers KeyFactory.EC");
             }
         }
 
