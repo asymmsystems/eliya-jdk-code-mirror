@@ -46,6 +46,19 @@ public final class P11Util {
     // A cleaner, shared within this module.
     public static final Cleaner cleaner = Cleaner.create();
 
+    // JCA service-type constants used by the capability-lookup helpers below.
+    private static final String KEY_FACTORY = "KeyFactory";
+    private static final String ALGORITHM_PARAMETERS = "AlgorithmParameters";
+
+    // Per-capability caches for the fixed-capability helpers. Each holds the
+    // first-non-excluded provider for its capability. Volatile is enough - a
+    // benign race between concurrent first-callers just repeats the O(N)
+    // lookup once; the result is deterministic.
+    private static volatile Provider dhProvider;
+    private static volatile Provider rsaProvider;
+    private static volatile Provider dsaProvider;
+    private static volatile Provider ecProvider;
+
     private P11Util() {
         // empty
     }
@@ -70,64 +83,108 @@ public final class P11Util {
     static Provider firstProviderFor(String serviceType, String algorithm,
             Provider excluding) throws ProviderException {
         Provider[] ps = Security.getProviders(serviceType + "." + algorithm);
-        if (ps != null && ps.length > 0) {
-            if (excluding == null) {
-                return ps[0];
-            }
-            for (Provider p : ps) {
-                if (p != excluding) {
-                    return p;
-                }
+        if (ps == null || ps.length == 0) {
+            throw noSuchProvider(serviceType, algorithm, excluding);
+        }
+        if (excluding == null) {
+            return ps[0];
+        }
+        for (Provider p : ps) {
+            if (p != excluding) {
+                return p;
             }
         }
-        throw new ProviderException("No JCA provider offers "
+        throw noSuchProvider(serviceType, algorithm, excluding);
+    }
+
+    private static ProviderException noSuchProvider(String serviceType,
+            String algorithm, Provider excluding) {
+        return new ProviderException("No JCA provider offers "
                 + serviceType + "." + algorithm
                 + (excluding == null ? ""
                         : " (excluding " + excluding.getName() + ")"));
     }
 
     /**
+     * Returns the first JCA-registered provider that offers
+     * {@code AlgorithmParameters.<algorithm>} and is not the {@code excluding}
+     * provider. Not cached: {@code algorithm} is a variable in the sole
+     * calling context, so a per-algorithm cache would proliferate keys with
+     * no reuse benefit.
+     *
+     * @see #firstProviderFor(String, String, Provider)
+     */
+    static Provider getFirstAlgorithmParametersProvider(String algorithm,
+            Provider excluding) throws ProviderException {
+        return firstProviderFor(ALGORITHM_PARAMETERS, algorithm, excluding);
+    }
+
+    /**
      * Returns the first JCA-registered provider that offers {@code KeyFactory.DH}
-     * and is not the {@code excluding} provider.
+     * and is not the {@code excluding} provider. Result is cached across calls.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
     static Provider getFirstDhProvider(Provider excluding)
             throws ProviderException {
-        return firstProviderFor("KeyFactory", "DH", excluding);
+        Provider p = dhProvider;
+        if (p != null && p != excluding) {
+            return p;
+        }
+        p = firstProviderFor(KEY_FACTORY, "DH", excluding);
+        dhProvider = p;
+        return p;
     }
 
     /**
      * Returns the first JCA-registered provider that offers {@code KeyFactory.RSA}
-     * and is not the {@code excluding} provider.
+     * and is not the {@code excluding} provider. Result is cached across calls.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
     static Provider getFirstRsaProvider(Provider excluding)
             throws ProviderException {
-        return firstProviderFor("KeyFactory", "RSA", excluding);
+        Provider p = rsaProvider;
+        if (p != null && p != excluding) {
+            return p;
+        }
+        p = firstProviderFor(KEY_FACTORY, "RSA", excluding);
+        rsaProvider = p;
+        return p;
     }
 
     /**
      * Returns the first JCA-registered provider that offers {@code KeyFactory.DSA}
-     * and is not the {@code excluding} provider.
+     * and is not the {@code excluding} provider. Result is cached across calls.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
     static Provider getFirstDsaProvider(Provider excluding)
             throws ProviderException {
-        return firstProviderFor("KeyFactory", "DSA", excluding);
+        Provider p = dsaProvider;
+        if (p != null && p != excluding) {
+            return p;
+        }
+        p = firstProviderFor(KEY_FACTORY, "DSA", excluding);
+        dsaProvider = p;
+        return p;
     }
 
     /**
      * Returns the first JCA-registered provider that offers {@code KeyFactory.EC}
-     * and is not the {@code excluding} provider.
+     * and is not the {@code excluding} provider. Result is cached across calls.
      *
      * @see #firstProviderFor(String, String, Provider)
      */
     static Provider getFirstEcProvider(Provider excluding)
             throws ProviderException {
-        return firstProviderFor("KeyFactory", "EC", excluding);
+        Provider p = ecProvider;
+        if (p != null && p != excluding) {
+            return p;
+        }
+        p = firstProviderFor(KEY_FACTORY, "EC", excluding);
+        ecProvider = p;
+        return p;
     }
 
     static boolean isNSS(Token token) {
