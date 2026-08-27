@@ -40,6 +40,7 @@ import javax.crypto.spec.*;
 import sun.security.rsa.RSAUtil.KeyType;
 import sun.security.rsa.RSAPublicKeyImpl;
 import sun.security.rsa.RSAPrivateCrtKeyImpl;
+import sun.security.util.ProviderLookup;
 
 import sun.security.internal.interfaces.TlsMasterSecret;
 
@@ -770,7 +771,8 @@ abstract class P11Key implements Key, Length {
                     // XXX make constructor in SunRsaSign provider public
                     // and call it directly
                     KeyFactory factory = KeyFactory.getInstance
-                        ("RSA", P11Util.getSunRsaSignProvider());
+                        ("RSA", ProviderLookup.getFirstProviderFor(
+                            "KeyFactory", "RSA", token.provider));
                     Key newKey = factory.translateKey(this);
                     encoded = newKey.getEncoded();
                 } catch (GeneralSecurityException e) {
@@ -1077,7 +1079,8 @@ abstract class P11Key implements Key, Length {
                     DHPrivateKeySpec spec = new DHPrivateKeySpec
                         (x, params.getP(), params.getG());
                     KeyFactory kf = KeyFactory.getInstance
-                        ("DH", P11Util.getSunJceProvider());
+                        ("DH", ProviderLookup.getFirstProviderFor(
+                            "KeyFactory", "DH", token.provider));
                     Key key = kf.generatePrivate(spec);
                     encoded = key.getEncoded();
                 } catch (GeneralSecurityException e) {
@@ -1157,7 +1160,8 @@ abstract class P11Key implements Key, Length {
                     DHPublicKeySpec spec = new DHPublicKeySpec
                         (y, params.getP(), params.getG());
                     KeyFactory kf = KeyFactory.getInstance
-                        ("DH", P11Util.getSunJceProvider());
+                        ("DH", ProviderLookup.getFirstProviderFor(
+                            "KeyFactory", "DH", token.provider));
                     Key key = kf.generatePublic(spec);
                     encoded = key.getEncoded();
                 } catch (GeneralSecurityException e) {

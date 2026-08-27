@@ -65,6 +65,39 @@ public final class ProviderLookup {
     }
 
     /**
+     * Returns the first registered provider that offers the JCA service
+     * {@code serviceType.algorithm} AND is not the {@code excluding}
+     * provider, or {@code null} if no such provider is registered.
+     *
+     * <p>Intended for callers who ARE a JCA provider themselves and need
+     * a delegate that is different from themselves - the classic case being
+     * SunPKCS11 (a hardware-token-backed provider) reaching into the JCA
+     * list for a software-based marshalling helper. Passing the caller's
+     * own {@code Provider} instance as {@code excluding} prevents the
+     * lookup from returning the caller and recursing.
+     *
+     * @param serviceType JCA service type
+     * @param algorithm   algorithm name
+     * @param excluding   the caller's own provider instance to skip; may be
+     *                    {@code null} in which case no exclusion is applied
+     * @return the first provider offering the capability that is not the
+     *         {@code excluding} one, or {@code null}
+     */
+    public static Provider getFirstProviderFor(String serviceType,
+            String algorithm, Provider excluding) {
+        Provider[] ps = Security.getProviders(serviceType + "." + algorithm);
+        if (ps == null) {
+            return null;
+        }
+        for (Provider p : ps) {
+            if (p != excluding) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Returns the first registered provider that offers any of the given
      * {@code type.algorithm} keys, checked in order, or {@code null} if
      * no registered provider offers any of them.

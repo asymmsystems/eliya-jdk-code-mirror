@@ -32,7 +32,7 @@ import java.security.spec.*;
 
 import javax.crypto.spec.DHParameterSpec;
 
-import sun.security.provider.ParameterCache;
+import sun.security.util.ParameterCache;
 import static sun.security.util.SecurityProviderConstants.*;
 
 import static sun.security.pkcs11.TemplateManager.*;

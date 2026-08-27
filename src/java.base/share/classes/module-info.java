@@ -323,7 +323,6 @@ module java.base {
         jdk.jartool;
     exports sun.security.provider to
         java.security.jgss,
-        jdk.crypto.cryptoki,
         jdk.security.auth;
     exports sun.security.provider.certpath to
         java.naming,

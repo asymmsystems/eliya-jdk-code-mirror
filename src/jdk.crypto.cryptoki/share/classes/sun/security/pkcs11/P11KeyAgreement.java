@@ -38,6 +38,7 @@ import static sun.security.pkcs11.TemplateManager.*;
 import sun.security.pkcs11.wrapper.*;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 import sun.security.util.KeyUtil;
+import sun.security.util.ProviderLookup;
 
 /**
  * KeyAgreement implementation class. This class currently supports
@@ -124,7 +125,8 @@ final class P11KeyAgreement extends KeyAgreementSpi {
             if (multiPartyAgreement == null) {
                 try {
                     multiPartyAgreement = KeyAgreement.getInstance
-                        ("DH", P11Util.getSunJceProvider());
+                        ("DH", ProviderLookup.getFirstProviderFor(
+                            "KeyFactory", "DH", token.provider));
                     multiPartyAgreement.init(privateKey);
                 } catch (NoSuchAlgorithmException e) {
                     throw new InvalidKeyException

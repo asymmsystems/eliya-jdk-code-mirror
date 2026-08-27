@@ -36,6 +36,7 @@ import sun.security.rsa.RSAPrivateCrtKeyImpl;
 import sun.security.rsa.RSAUtil.KeyType;
 import static sun.security.pkcs11.TemplateManager.*;
 import sun.security.pkcs11.wrapper.*;
+import sun.security.util.ProviderLookup;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 import sun.security.rsa.RSAKeyFactory;
@@ -324,7 +325,9 @@ final class P11RSAKeyFactory extends P11KeyFactory {
     }
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
-        return KeyFactory.getInstance("RSA", P11Util.getSunRsaSignProvider());
+        return KeyFactory.getInstance("RSA",
+            ProviderLookup.getFirstProviderFor(
+                "KeyFactory", "RSA", token.provider));
     }
 
 }

@@ -34,7 +34,6 @@ import java.security.*;
 
 import sun.security.pkcs11.wrapper.PKCS11Exception;
 import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
-import sun.security.util.ProviderLookup;
 
 /**
  * Collection of static utility methods.
@@ -46,10 +45,6 @@ public final class P11Util {
 
     // A cleaner, shared within this module.
     public static final Cleaner cleaner = Cleaner.create();
-
-    private static final Object LOCK = new Object();
-
-    private static volatile Provider sun, sunRsaSign, sunJce;
 
     private P11Util() {
         // empty
@@ -93,52 +88,6 @@ public final class P11Util {
             passwordBytes.put(i++, (byte) 0);
         }
         return encPassword;
-    }
-
-    static Provider getSunProvider() {
-        Provider p = sun;
-        if (p == null) {
-            synchronized (LOCK) {
-                p = ProviderLookup.getFirstProviderFor(
-                    "KeyPairGenerator", "DSA");
-                if (p == null) {
-                    throw new ProviderException(
-                        "No JCA provider offers KeyPairGenerator.DSA");
-                }
-                sun = p;
-            }
-        }
-        return p;
-    }
-
-    static Provider getSunRsaSignProvider() {
-        Provider p = sunRsaSign;
-        if (p == null) {
-            synchronized (LOCK) {
-                p = ProviderLookup.getFirstProviderFor("KeyFactory", "RSA");
-                if (p == null) {
-                    throw new ProviderException(
-                        "No JCA provider offers KeyFactory.RSA");
-                }
-                sunRsaSign = p;
-            }
-        }
-        return p;
-    }
-
-    static Provider getSunJceProvider() {
-        Provider p = sunJce;
-        if (p == null) {
-            synchronized (LOCK) {
-                p = ProviderLookup.getFirstProviderFor("KeyFactory", "DH");
-                if (p == null) {
-                    throw new ProviderException(
-                        "No JCA provider offers KeyFactory.DH");
-                }
-                sunJce = p;
-            }
-        }
-        return p;
     }
 
     static byte[] convert(byte[] input, int offset, int len) {

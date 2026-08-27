@@ -47,20 +47,6 @@ import sun.security.util.ProviderLookup;
  * @since   1.6
  */
 final class P11ECKeyFactory extends P11KeyFactory {
-    private static Provider sunECprovider;
-
-    private static Provider getSunECProvider() {
-        if (sunECprovider == null) {
-            sunECprovider = ProviderLookup.getFirstProviderFor(
-                "KeyFactory", "EC");
-            if (sunECprovider == null) {
-                throw new RuntimeException(
-                    "No JCA provider offers KeyFactory.EC");
-            }
-        }
-
-        return sunECprovider;
-    }
 
     P11ECKeyFactory(Token token, String algorithm) {
         super(token, algorithm);
@@ -334,7 +320,9 @@ final class P11ECKeyFactory extends P11KeyFactory {
     }
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
-        return KeyFactory.getInstance("EC", getSunECProvider());
+        return KeyFactory.getInstance("EC",
+            ProviderLookup.getFirstProviderFor(
+                "KeyFactory", "EC", token.provider));
     }
 
 }
