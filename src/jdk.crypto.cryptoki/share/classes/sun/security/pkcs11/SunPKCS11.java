@@ -41,9 +41,9 @@ import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.PasswordCallback;
 
-import com.sun.crypto.provider.ChaCha20Poly1305Parameters;
+import sun.security.util.ChaCha20Poly1305Parameters;
 
-import com.sun.crypto.provider.DHParameters;
+import sun.security.util.DHParameters;
 import jdk.internal.misc.InnocuousThread;
 import sun.security.rsa.PSSParameters;
 import sun.security.util.Debug;
@@ -704,7 +704,7 @@ public final class SunPKCS11 extends AuthProvider {
                 m(CKM_AES_GCM));
 
         dA(AGP, "ChaCha20-Poly1305",
-                "com.sun.crypto.provider.ChaCha20Poly1305Parameters",
+                "sun.security.util.ChaCha20Poly1305Parameters",
                 m(CKM_CHACHA20_POLY1305));
 
         dA(AGP, "RSASSA-PSS",
@@ -712,7 +712,7 @@ public final class SunPKCS11 extends AuthProvider {
                 m(CKM_RSA_PKCS_PSS));
 
         dA(AGP, "DiffieHellman",
-                "com.sun.crypto.provider.DHParameters",
+                "sun.security.util.DHParameters",
                 m(CKM_DH_PKCS_DERIVE));
 
         d(KA, "DH",             P11KeyAgreement,
@@ -1475,11 +1475,11 @@ public final class SunPKCS11 extends AuthProvider {
                 } else if (algorithm == "GCM") {
                     return new sun.security.util.GCMParameters();
                 } else if (algorithm == "ChaCha20-Poly1305") {
-                    return new ChaCha20Poly1305Parameters(); // from SunJCE
+                    return new ChaCha20Poly1305Parameters();
                 } else if (algorithm == "RSASSA-PSS") {
                     return new PSSParameters(); // from SunRsaSign
                 } else if (algorithm == "DiffieHellman") {
-                    return new DHParameters(); // from SunJCE
+                    return new DHParameters();
                 } else {
                     throw new NoSuchAlgorithmException("Unsupported algorithm: "
                             + algorithm);

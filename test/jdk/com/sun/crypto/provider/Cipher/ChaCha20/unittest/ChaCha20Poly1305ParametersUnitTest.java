@@ -26,7 +26,7 @@
  * @bug 8153029
  * @library /test/lib
  * @run main ChaCha20Poly1305ParametersUnitTest
- * @summary Unit test for com.sun.crypto.provider.ChaCha20Poly1305Parameters.
+ * @summary Unit test for sun.security.util.ChaCha20Poly1305Parameters
  */
 
 import java.io.IOException;

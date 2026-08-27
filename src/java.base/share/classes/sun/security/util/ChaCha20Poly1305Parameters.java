@@ -23,14 +23,13 @@
  * questions.
  */
 
-package com.sun.crypto.provider;
+package sun.security.util;
 
 import java.io.IOException;
 import java.security.AlgorithmParametersSpi;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidParameterSpecException;
 import javax.crypto.spec.IvParameterSpec;
-import sun.security.util.*;
 
 /**
  * This class implements the parameter set used with the ChaCha20-Poly1305
