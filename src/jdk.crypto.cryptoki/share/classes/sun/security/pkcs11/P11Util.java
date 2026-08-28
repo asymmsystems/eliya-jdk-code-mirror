@@ -40,6 +40,7 @@ import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
  * Collection of static utility methods.
  *
  * @author  Andreas Sterbenz
+ * @author  Fahim Farook
  * @since   1.5
  */
 public final class P11Util {
@@ -52,14 +53,26 @@ public final class P11Util {
     }
 
     /**
-     * Returns the first JCA-registered provider that offers the service
-     * {@code serviceType.algorithm} and is not the {@code excluding} provider.
+     * Returns the first JCA-registered non-PKCS #11 provider that offers the
+     * service {@code serviceType.algorithm}.
      *
      * <p>Intended for SunPKCS11-internal fallback lookups where SunPKCS11
-     * needs a software delegate for parameter marshalling or key translation.
-     * Callers pass their owning {@code SunPKCS11} instance as {@code excluding}
-     * to prevent lookup-recursion when SunPKCS11 itself is registered offering
-     * the same JCA service.
+     * needs a Java-side software delegate for operations such as DER
+     * encoding, {@code BigInteger} accessors on the {@code RSAKey} /
+     * {@code DHKey} / {@code DSAKey} interfaces, or key-spec construction -
+     * work that PKCS #11's opaque-native-handle abstraction cannot answer
+     * without importing the key onto another token.
+     *
+     * <p>Providers offered by {@code jdk.crypto.cryptoki} (i.e. instances of
+     * {@link SunPKCS11}) are skipped. This restores the pre-JEP-B safety
+     * envelope precisely: the {@code jdk.crypto.cryptoki} module provides
+     * exactly one JCA {@code Provider} class ({@code SunPKCS11}, declared
+     * {@code final}), so this predicate catches every SunPKCS11 instance
+     * from every configured token slot - including sibling instances in a
+     * multi-slot PKCS #11 deployment. Third-party PKCS #11 providers (from
+     * other vendors) and non-PKCS #11 native-backed providers (SunMSCAPI,
+     * Apple Keychain) are outside this envelope by design; they were also
+     * outside the pre-JEP-B name-anchored lookup's envelope.
      *
      * <p>The result is not cached in {@code P11Util}. {@code java.security}
      * exposes no invalidation hook for the JCA provider list, so any
@@ -72,81 +85,72 @@ public final class P11Util {
      *
      * @param serviceType JCA service type, e.g. "KeyFactory", "AlgorithmParameters"
      * @param algorithm   algorithm name, e.g. "DH", "RSA"
-     * @param excluding   a provider instance to skip; may be null to skip
-     *                    nothing
-     * @throws ProviderException if no non-excluded provider offers the
+     * @throws ProviderException if no non-PKCS #11 provider offers the
      *         requested capability
      */
-    private static Provider firstProviderFor(String serviceType, String algorithm,
-            Provider excluding) throws ProviderException {
+    private static Provider firstProviderFor(String serviceType, String algorithm)
+            throws ProviderException {
         for (Provider p : Providers.getProviderList().providers()) {
-            if (p == excluding) {
+            if (p instanceof SunPKCS11) {
                 continue;
             }
             if (p.getService(serviceType, algorithm) != null) {
                 return p;
             }
         }
-        throw new ProviderException("No JCA provider offers "
-                + serviceType + "." + algorithm
-                + (excluding == null ? ""
-                        : " (excluding " + excluding.getName() + ")"));
+        throw new ProviderException(
+                "No non-PKCS#11 JCA provider offers " + serviceType + "." + algorithm);
     }
 
     /**
-     * Returns the first JCA-registered provider that offers
-     * {@code AlgorithmParameters.<algorithm>} and is not the {@code excluding}
-     * provider.
+     * Returns the first JCA-registered non-PKCS #11 provider that offers
+     * {@code AlgorithmParameters.<algorithm>}.
      *
-     * @see #firstProviderFor(String, String, Provider)
+     * @see #firstProviderFor(String, String)
      */
-    static Provider getFirstAlgorithmParametersProvider(String algorithm,
-            Provider excluding) throws ProviderException {
-        return firstProviderFor("AlgorithmParameters", algorithm, excluding);
-    }
-
-    /**
-     * Returns the first JCA-registered provider that offers {@code KeyFactory.DH}
-     * and is not the {@code excluding} provider.
-     *
-     * @see #firstProviderFor(String, String, Provider)
-     */
-    static Provider getFirstDhProvider(Provider excluding)
+    static Provider getFirstAlgorithmParametersProvider(String algorithm)
             throws ProviderException {
-        return firstProviderFor("KeyFactory", "DH", excluding);
+        return firstProviderFor("AlgorithmParameters", algorithm);
     }
 
     /**
-     * Returns the first JCA-registered provider that offers {@code KeyFactory.RSA}
-     * and is not the {@code excluding} provider.
+     * Returns the first JCA-registered non-PKCS #11 provider that offers
+     * {@code KeyFactory.DH}.
      *
-     * @see #firstProviderFor(String, String, Provider)
+     * @see #firstProviderFor(String, String)
      */
-    static Provider getFirstRsaProvider(Provider excluding)
-            throws ProviderException {
-        return firstProviderFor("KeyFactory", "RSA", excluding);
+    static Provider getFirstDhProvider() throws ProviderException {
+        return firstProviderFor("KeyFactory", "DH");
     }
 
     /**
-     * Returns the first JCA-registered provider that offers {@code KeyFactory.DSA}
-     * and is not the {@code excluding} provider.
+     * Returns the first JCA-registered non-PKCS #11 provider that offers
+     * {@code KeyFactory.RSA}.
      *
-     * @see #firstProviderFor(String, String, Provider)
+     * @see #firstProviderFor(String, String)
      */
-    static Provider getFirstDsaProvider(Provider excluding)
-            throws ProviderException {
-        return firstProviderFor("KeyFactory", "DSA", excluding);
+    static Provider getFirstRsaProvider() throws ProviderException {
+        return firstProviderFor("KeyFactory", "RSA");
     }
 
     /**
-     * Returns the first JCA-registered provider that offers {@code KeyFactory.EC}
-     * and is not the {@code excluding} provider.
+     * Returns the first JCA-registered non-PKCS #11 provider that offers
+     * {@code KeyFactory.DSA}.
      *
-     * @see #firstProviderFor(String, String, Provider)
+     * @see #firstProviderFor(String, String)
      */
-    static Provider getFirstEcProvider(Provider excluding)
-            throws ProviderException {
-        return firstProviderFor("KeyFactory", "EC", excluding);
+    static Provider getFirstDsaProvider() throws ProviderException {
+        return firstProviderFor("KeyFactory", "DSA");
+    }
+
+    /**
+     * Returns the first JCA-registered non-PKCS #11 provider that offers
+     * {@code KeyFactory.EC}.
+     *
+     * @see #firstProviderFor(String, String)
+     */
+    static Provider getFirstEcProvider() throws ProviderException {
+        return firstProviderFor("KeyFactory", "EC");
     }
 
     static boolean isNSS(Token token) {

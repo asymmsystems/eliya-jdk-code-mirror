@@ -43,6 +43,7 @@ import sun.security.util.ECUtil;
  * EC KeyFactory implementation.
  *
  * @author  Andreas Sterbenz
+ * @author  Fahim Farook
  * @since   1.6
  */
 final class P11ECKeyFactory extends P11KeyFactory {
@@ -320,7 +321,7 @@ final class P11ECKeyFactory extends P11KeyFactory {
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
         return KeyFactory.getInstance("EC",
-            P11Util.getFirstEcProvider(token.provider));
+            P11Util.getFirstEcProvider());
     }
 
 }
