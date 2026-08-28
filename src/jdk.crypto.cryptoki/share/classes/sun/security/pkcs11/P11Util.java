@@ -103,9 +103,7 @@ public final class P11Util {
     }
 
     /**
-     * Returns the first JCA-registered non-PKCS #11 provider that offers
-     * {@code AlgorithmParameters.<algorithm>}.
-     *
+     * Non-PKCS #11 provider offering {@code AlgorithmParameters.<algorithm>}.
      * @see #firstProviderFor(String, String)
      */
     static Provider getFirstAlgorithmParametersProvider(String algorithm)
@@ -114,9 +112,7 @@ public final class P11Util {
     }
 
     /**
-     * Returns the first JCA-registered non-PKCS #11 provider that offers
-     * {@code KeyFactory.DH}.
-     *
+     * Non-PKCS #11 provider offering {@code KeyFactory.DH}.
      * @see #firstProviderFor(String, String)
      */
     static Provider getFirstDhProvider() throws ProviderException {
@@ -124,9 +120,7 @@ public final class P11Util {
     }
 
     /**
-     * Returns the first JCA-registered non-PKCS #11 provider that offers
-     * {@code KeyFactory.RSA}.
-     *
+     * Non-PKCS #11 provider offering {@code KeyFactory.RSA}.
      * @see #firstProviderFor(String, String)
      */
     static Provider getFirstRsaProvider() throws ProviderException {
@@ -134,9 +128,7 @@ public final class P11Util {
     }
 
     /**
-     * Returns the first JCA-registered non-PKCS #11 provider that offers
-     * {@code KeyFactory.DSA}.
-     *
+     * Non-PKCS #11 provider offering {@code KeyFactory.DSA}.
      * @see #firstProviderFor(String, String)
      */
     static Provider getFirstDsaProvider() throws ProviderException {
@@ -144,9 +136,7 @@ public final class P11Util {
     }
 
     /**
-     * Returns the first JCA-registered non-PKCS #11 provider that offers
-     * {@code KeyFactory.EC}.
-     *
+     * Non-PKCS #11 provider offering {@code KeyFactory.EC}.
      * @see #firstProviderFor(String, String)
      */
     static Provider getFirstEcProvider() throws ProviderException {
