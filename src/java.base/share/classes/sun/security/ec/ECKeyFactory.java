@@ -54,7 +54,29 @@ import java.util.Arrays;
  */
 public final class ECKeyFactory extends KeyFactorySpi {
 
-    // Used by translateKey()
+    // Used by translateKey().
+    //
+    // This class lives INSIDE the SunEC provider package (sun.security.ec).
+    // The KeyFactory this method returns is used by toECKey() below to call
+    // KeyFactory.translateKey(Key) on foreign-provider keys, producing keys
+    // in the returned factory's provider's own representation.
+    //
+    // Pre-JEP-D, this call was KeyFactory.getInstance("EC", "SunEC"), a
+    // hardcoded self-lookup. Pattern A fix per JEP-D drops the second
+    // argument. Consequences:
+    //   * Stock JVM: SunEC is at the first EC slot, so the lookup still
+    //     returns SunEC's own KeyFactory. Same behaviour as pre-JEP-D.
+    //   * Substitute-provider deployment (BCFIPS at slot 1, Eliya FIPS
+    //     variant): lookup returns the substitute provider's EC KeyFactory.
+    //     toECKey() then translates foreign keys into the substitute's
+    //     native representation - which is the intended substitute-provider
+    //     outcome, matching JEP-B's substitute-provider-enablement goal.
+    //   * SunEC source-removed variant: this class itself is not loaded
+    //     (the whole SunEC surface is absent), so the site is moot.
+    //
+    // The original intent WAS self-lookup ("get my own KeyFactory for key
+    // translation"). Pattern A preserves that intent on stock JVM while
+    // enabling the substitute path on non-stock deployments.
     private static KeyFactory instance;
 
     private static KeyFactory getInstance() {

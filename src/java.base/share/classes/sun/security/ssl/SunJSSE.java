@@ -63,29 +63,56 @@ public class SunJSSE extends java.security.Provider {
 
         // JEP-D capability declaration: "AutoLoadsDefaultTrustStore".
         //
-        // SunJSSE's TrustManagerFactory implements a convention that is
-        // NOT part of the JCA spec: calling tmf.init((KeyStore) null)
-        // auto-loads the JDK's default truststore. This convention exists
-        // in SunJSSE and has been depended on by SSLContextImpl.
-        // getTrustManagers() (and, historically, by user code) for years.
+        // WHAT THE ATTRIBUTE MEANS.
+        //   SunJSSE's TrustManagerFactory has a convention (NOT part of
+        //   the JCA spec): calling tmf.init((KeyStore) null) auto-loads
+        //   the JDK's default truststore. The actual auto-load happens
+        //   inside TrustManagerFactoryImpl.SimpleFactory.engineInit()
+        //   and PKIXFactory.engineInit() when passed a null KeyStore -
+        //   pre-existing SPI code, UNCHANGED by this JEP. The attribute
+        //   declared here is METADATA labelling that pre-existing SPI
+        //   capability so JDK-internal consumers can query for it via
+        //   Provider.Service.getAttribute() instead of hardcoding a
+        //   provider-name check.
         //
-        // Pre-JEP-D, SSLContextImpl selected the auto-load branch by
-        // hardcoding a name check on getProvider().getName().equals(
-        // "SunJSSE") - a DIP violation that made the branch unreachable
-        // in distributions that replace SunJSSE with BCJSSE.
+        // WHY WE ADD IT TO BOTH TMF ALGORITHMS.
+        //   SunJSSE registers TWO TrustManagerFactory algorithms:
+        //     - "SunX509" -> TrustManagerFactoryImpl.SimpleFactory
+        //     - "PKIX" (with aliases SunPKIX, X509, X.509) ->
+        //                  TrustManagerFactoryImpl.PKIXFactory
+        //   Both engineInit() implementations honour the null-KeyStore-
+        //   loads-default convention, so both service registrations get
+        //   the attribute. We are not deciding "is this provider Sun
+        //   JSSE" - we are marking each specific TMF service registration
+        //   that supports the convention. When SSLContextImpl calls
+        //   TrustManagerFactory.getDefaultAlgorithm() (returns "PKIX" by
+        //   default per java.security), JCA slot-dispatch returns the
+        //   TMF service registered for that algorithm by the first-slot
+        //   provider offering it; the attribute query then hits SunJSSE
+        //   only when SunJSSE is that provider. Under a substitute
+        //   deployment where BCJSSE is at slot 1, the query hits
+        //   BCJSSE's PKIX TMF service registration - which does not
+        //   declare the attribute yet, so the consumer falls through
+        //   to the explicit-KeyStore branch (identical to the pre-JEP-D
+        //   behavior for BCJSSE).
         //
-        // JEP-D replaces the name check with a first-class capability
-        // declaration: SunJSSE (and any other TMF impl that supports the
-        // convention) advertises the capability via the service attribute
-        // below at putService time. Consumers query the attribute via
-        // Provider.Service.getAttribute() - see SSLContextImpl.get
-        // TrustManagers() for the consumer side. Attribute value is a
-        // string ("true", case-insensitive) matching JCA convention for
-        // boolean-valued service attributes (see "ThreadSafe" precedent).
+        // WHY NAMING AND VALUE FOLLOW JCA CONVENTION.
+        //   CamelCase bare attribute name; string value ("true", case-
+        //   insensitive on the consumer side). Matches upstream JCA
+        //   attribute-naming precedent: "SupportedKeyClasses", "Thread
+        //   Safe", "SupportedModes", "SupportedPaddings", "KeySize".
+        //   Documented in java.security.Provider.Service.getAttribute
+        //   javadoc.
         //
-        // Both SunX509 and PKIX variants get the attribute because
-        // TrustManagerFactoryImpl.SimpleFactory (SunX509) and PKIXFactory
-        // (PKIX) both implement the convention.
+        // WHY THIS IS BACKWARD COMPATIBLE.
+        //   Adding a new attribute to existing service registrations is
+        //   a purely additive JCA-level extension. Existing users of
+        //   SunJSSE (application code calling TrustManagerFactory.get
+        //   Instance("PKIX").init(null)) see NO change - the SPI-side
+        //   auto-load logic is untouched. Third-party JSSE providers see
+        //   NO change - they were on the explicit-KeyStore branch pre-
+        //   JEP-D and remain there post-JEP-D unless they opt in by
+        //   declaring the same attribute.
         //
         // See jep-capability-lookup-util.md §"Site 4 in depth" and
         // jep-provider-lookup-helper.md §"J4 in depth" for the full

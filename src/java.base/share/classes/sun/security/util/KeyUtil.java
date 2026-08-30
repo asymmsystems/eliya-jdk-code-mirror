@@ -132,11 +132,24 @@ public final class KeyUtil {
 
         switch (parameters.getAlgorithm()) {
             case "EC":
-                // ECKeySizeParameterSpec is a SunEC-internal ParameterSpec; try
-                // to unpack it and let getParameterSpec's own capability check
-                // (throws InvalidParameterSpecException for providers that do
-                // not offer this spec class) replace the pre-JEP-D name check
-                // on getProvider().getName().equals("SunEC").
+                // ECKeySizeParameterSpec is a JDK-internal ParameterSpec
+                // living in this same package (sun.security.util). SunEC's
+                // AlgorithmParameters implementation can unpack its state
+                // into this spec class as an efficient key-size shortcut;
+                // third-party EC AlgorithmParameters implementations may or
+                // may not offer the same unpack.
+                //
+                // Pre-JEP-D, the code gated the shortcut on a name check
+                // getProvider().getName().equals("SunEC"). Pattern C fix
+                // per JEP-D: attempt the unpack unconditionally, catch
+                // InvalidParameterSpecException, fall through to the
+                // standard ECParameterSpec attempt below. Providers whose
+                // AlgorithmParameters cannot unpack into ECKeySizeParameter
+                // Spec (including all non-SunEC providers today) hit the
+                // catch and reach the ECParameterSpec fallback - same code
+                // path they reached pre-JEP-D via the else branch of the
+                // removed name check. Zero behaviour change for any
+                // provider that did not previously match "SunEC".
                 try {
                     ECKeySizeParameterSpec ps = parameters.getParameterSpec(
                         ECKeySizeParameterSpec.class);
@@ -144,8 +157,9 @@ public final class KeyUtil {
                         return ps.getKeySize();
                     }
                 } catch (InvalidParameterSpecException ipse) {
-                    // provider does not offer the SunEC-internal spec class;
-                    // fall through to the standard ECParameterSpec attempt
+                    // provider's AlgorithmParameters does not offer the
+                    // ECKeySizeParameterSpec unpack; fall through to the
+                    // standard ECParameterSpec attempt below.
                 }
 
                 try {

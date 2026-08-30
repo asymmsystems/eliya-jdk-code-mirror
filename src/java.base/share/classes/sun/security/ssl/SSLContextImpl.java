@@ -959,9 +959,26 @@ public abstract class SSLContextImpl extends SSLContextSpi {
             // a "does this provider advertise the capability" attribute
             // query. Providers that implement the convention declare it at
             // putService time via the "AutoLoadsDefaultTrustStore" service
-            // attribute (value "true", case-insensitive; see SunJSSE.java
-            // registerAlgorithms() for the producer side). This code is the
-            // consumer side that reads the declaration.
+            // attribute (value "true", case-insensitive).
+            //
+            //   Attribute origin: introduced by JEP-D. NOT a JCA-standard
+            //   attribute (JCA does not reserve attribute names; providers
+            //   may declare any string-valued attribute at putService()
+            //   time). Standard existing JCA attributes include Supported
+            //   KeyClasses, ThreadSafe, SupportedModes, SupportedPaddings,
+            //   KeySize - all follow the same CamelCase / string-value
+            //   convention this new attribute follows.
+            //
+            //   Provider adoption:
+            //     - SunJSSE declares the attribute on both TrustManager
+            //       Factory service registrations (SunX509 and PKIX) - see
+            //       SunJSSE.registerAlgorithms() producer side.
+            //     - Third-party JSSE providers (BCJSSE, RSA BSAFE, IBM
+            //       JSSE2) opt in by adding the same attribute to their
+            //       own putService() calls. Until they opt in, they fall
+            //       through to the explicit-KeyStore branch - IDENTICAL
+            //       to their pre-JEP-D behavior (they never matched the
+            //       "SunJSSE" name check either).
             //
             // Null-safety: getService() returns null in the rare case where
             // a provider registered the TMF via a non-standard path (not
