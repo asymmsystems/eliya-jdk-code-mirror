@@ -132,17 +132,20 @@ public final class KeyUtil {
 
         switch (parameters.getAlgorithm()) {
             case "EC":
-                // ECKeySizeParameterSpec is SunEC internal only
-                if (parameters.getProvider().getName().equals("SunEC")) {
-                    try {
-                        ECKeySizeParameterSpec ps = parameters.getParameterSpec(
-                            ECKeySizeParameterSpec.class);
-                        if (ps != null) {
-                            return ps.getKeySize();
-                        }
-                    } catch (InvalidParameterSpecException ipse) {
-                        // ignore
+                // ECKeySizeParameterSpec is a SunEC-internal ParameterSpec; try
+                // to unpack it and let getParameterSpec's own capability check
+                // (throws InvalidParameterSpecException for providers that do
+                // not offer this spec class) replace the pre-JEP-D name check
+                // on getProvider().getName().equals("SunEC").
+                try {
+                    ECKeySizeParameterSpec ps = parameters.getParameterSpec(
+                        ECKeySizeParameterSpec.class);
+                    if (ps != null) {
+                        return ps.getKeySize();
                     }
+                } catch (InvalidParameterSpecException ipse) {
+                    // provider does not offer the SunEC-internal spec class;
+                    // fall through to the standard ECParameterSpec attempt
                 }
 
                 try {

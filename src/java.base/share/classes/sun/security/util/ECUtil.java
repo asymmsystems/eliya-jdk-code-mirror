@@ -98,8 +98,8 @@ public final class ECUtil {
 
     private static KeyFactory getKeyFactory() {
         try {
-            return KeyFactory.getInstance("EC", "SunEC");
-        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            return KeyFactory.getInstance("EC");
+        } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
     }

@@ -60,8 +60,8 @@ public final class ECKeyFactory extends KeyFactorySpi {
     private static KeyFactory getInstance() {
         if (instance == null) {
             try {
-                instance = KeyFactory.getInstance("EC", "SunEC");
-            } catch (NoSuchProviderException | NoSuchAlgorithmException e) {
+                instance = KeyFactory.getInstance("EC");
+            } catch (NoSuchAlgorithmException e) {
                 throw new RuntimeException(e);
             }
         }

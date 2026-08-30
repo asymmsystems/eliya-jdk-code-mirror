@@ -939,16 +939,27 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         }
 
         private static TrustManager[] getTrustManagers() throws Exception {
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(
-                    TrustManagerFactory.getDefaultAlgorithm());
-            if ("SunJSSE".equals(tmf.getProvider().getName())) {
+            String defaultAlg = TrustManagerFactory.getDefaultAlgorithm();
+            TrustManagerFactory tmf =
+                    TrustManagerFactory.getInstance(defaultAlg);
+            // Some TrustManagerFactory implementations (SunJSSE historically)
+            // auto-load the default truststore when init(null) is called.
+            // The provider advertises this capability via the JCA service
+            // attribute "AutoLoadsDefaultTrustStore" = "true" (per JEP-D
+            // capability-lookup convention; replaces the pre-JEP-D name
+            // check on getProvider().getName().equals("SunJSSE")).
+            Provider.Service tmfService = tmf.getProvider().getService(
+                    "TrustManagerFactory", defaultAlg);
+            if (tmfService != null && "true".equalsIgnoreCase(
+                    tmfService.getAttribute("AutoLoadsDefaultTrustStore"))) {
                 // The implementation will load the default KeyStore
                 // automatically.  Cached trust materials may be used
                 // for performance improvement.
                 tmf.init((KeyStore)null);
             } else {
-                // Use the explicitly specified KeyStore for third party's
-                // TrustManagerFactory implementation.
+                // Use the explicitly specified KeyStore for
+                // TrustManagerFactory implementations that do not
+                // auto-load a default.
                 KeyStore ks = TrustStoreManager.getTrustedKeyStore();
                 tmf.init(ks);
             }

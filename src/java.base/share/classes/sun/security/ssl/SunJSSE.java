@@ -61,12 +61,20 @@ public class SunJSSE extends java.security.Provider {
             "sun.security.ssl.KeyManagerFactoryImpl$X509",
             List.of("PKIX"), null);
 
+        // JEP-D "AutoLoadsDefaultTrustStore" attribute: advertises that
+        // TrustManagerFactory.init(null) will auto-load the default trust
+        // store. Consumed by SSLContextImpl.getTrustManagers() (JEP-D
+        // site 4) as a capability marker replacing the pre-JEP-D
+        // getProvider().getName().equals("SunJSSE") check.
+        HashMap<String, String> autoLoadsAttr = new HashMap<>(1);
+        autoLoadsAttr.put("AutoLoadsDefaultTrustStore", "true");
+
         ps("TrustManagerFactory", "SunX509",
             "sun.security.ssl.TrustManagerFactoryImpl$SimpleFactory",
-            null, null);
+            null, autoLoadsAttr);
         ps("TrustManagerFactory", "PKIX",
             "sun.security.ssl.TrustManagerFactoryImpl$PKIXFactory",
-            List.of("SunPKIX", "X509", "X.509"), null);
+            List.of("SunPKIX", "X509", "X.509"), autoLoadsAttr);
 
         ps("SSLContext", "TLSv1",
             "sun.security.ssl.SSLContextImpl$TLS10Context",
