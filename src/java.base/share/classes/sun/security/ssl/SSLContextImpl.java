@@ -942,24 +942,53 @@ public abstract class SSLContextImpl extends SSLContextSpi {
             String defaultAlg = TrustManagerFactory.getDefaultAlgorithm();
             TrustManagerFactory tmf =
                     TrustManagerFactory.getInstance(defaultAlg);
-            // Some TrustManagerFactory implementations (SunJSSE historically)
-            // auto-load the default truststore when init(null) is called.
-            // The provider advertises this capability via the JCA service
-            // attribute "AutoLoadsDefaultTrustStore" = "true" (per JEP-D
-            // capability-lookup convention; replaces the pre-JEP-D name
-            // check on getProvider().getName().equals("SunJSSE")).
+
+            // JEP-D capability-lookup dispatch (replaces pre-JEP-D
+            // `if ("SunJSSE".equals(tmf.getProvider().getName()))` name check).
+            //
+            // SunJSSE's TrustManagerFactory implements a convention that is
+            // NOT part of the JCA spec: calling tmf.init((KeyStore) null)
+            // causes SunJSSE to auto-load the JDK's default truststore
+            // (javax.net.ssl.trustStore -> ${JAVA_HOME}/lib/security/jssecacerts
+            // -> ${JAVA_HOME}/lib/security/cacerts). Third-party TMF impls
+            // that do not implement this convention behave differently on
+            // init(null): some throw NullPointerException, some return
+            // trust managers with no trusted certs, some are undefined.
+            //
+            // JEP-D replaces the "which provider is this" name check with
+            // a "does this provider advertise the capability" attribute
+            // query. Providers that implement the convention declare it at
+            // putService time via the "AutoLoadsDefaultTrustStore" service
+            // attribute (value "true", case-insensitive; see SunJSSE.java
+            // registerAlgorithms() for the producer side). This code is the
+            // consumer side that reads the declaration.
+            //
+            // Null-safety: getService() returns null in the rare case where
+            // a provider registered the TMF via a non-standard path (not
+            // via putService). The `tmfService != null` guard sends that
+            // case to the explicit-KeyStore branch, which is semantically
+            // identical to the pre-JEP-D fallback for any non-SunJSSE TMF.
+            // getAttribute() returns null if the provider did not declare
+            // the attribute; "true".equalsIgnoreCase(null) returns false,
+            // so a missing attribute also falls through to the explicit-
+            // KeyStore branch. Same fallback in both edge cases.
+            //
+            // See jep-capability-lookup-util.md §"Site 4 in depth" and
+            // jep-provider-lookup-helper.md §"J4 in depth" for the full
+            // producer/consumer explanation + why Pattern B was chosen
+            // over Pattern A (drop check) or Pattern C (exception fallback).
             Provider.Service tmfService = tmf.getProvider().getService(
                     "TrustManagerFactory", defaultAlg);
             if (tmfService != null && "true".equalsIgnoreCase(
                     tmfService.getAttribute("AutoLoadsDefaultTrustStore"))) {
-                // The implementation will load the default KeyStore
-                // automatically.  Cached trust materials may be used
-                // for performance improvement.
+                // Provider advertises the null-KeyStore-loads-default
+                // capability. Cached trust materials may be used for
+                // performance improvement.
                 tmf.init((KeyStore)null);
             } else {
-                // Use the explicitly specified KeyStore for
-                // TrustManagerFactory implementations that do not
-                // auto-load a default.
+                // Provider does not advertise the capability. Pass an
+                // explicit KeyStore loaded by TrustStoreManager. Identical
+                // to pre-JEP-D behavior for any non-SunJSSE TMF.
                 KeyStore ks = TrustStoreManager.getTrustedKeyStore();
                 tmf.init(ks);
             }

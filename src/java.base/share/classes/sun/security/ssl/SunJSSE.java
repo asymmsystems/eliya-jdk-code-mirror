@@ -61,11 +61,35 @@ public class SunJSSE extends java.security.Provider {
             "sun.security.ssl.KeyManagerFactoryImpl$X509",
             List.of("PKIX"), null);
 
-        // JEP-D "AutoLoadsDefaultTrustStore" attribute: advertises that
-        // TrustManagerFactory.init(null) will auto-load the default trust
-        // store. Consumed by SSLContextImpl.getTrustManagers() (JEP-D
-        // site 4) as a capability marker replacing the pre-JEP-D
-        // getProvider().getName().equals("SunJSSE") check.
+        // JEP-D capability declaration: "AutoLoadsDefaultTrustStore".
+        //
+        // SunJSSE's TrustManagerFactory implements a convention that is
+        // NOT part of the JCA spec: calling tmf.init((KeyStore) null)
+        // auto-loads the JDK's default truststore. This convention exists
+        // in SunJSSE and has been depended on by SSLContextImpl.
+        // getTrustManagers() (and, historically, by user code) for years.
+        //
+        // Pre-JEP-D, SSLContextImpl selected the auto-load branch by
+        // hardcoding a name check on getProvider().getName().equals(
+        // "SunJSSE") - a DIP violation that made the branch unreachable
+        // in distributions that replace SunJSSE with BCJSSE.
+        //
+        // JEP-D replaces the name check with a first-class capability
+        // declaration: SunJSSE (and any other TMF impl that supports the
+        // convention) advertises the capability via the service attribute
+        // below at putService time. Consumers query the attribute via
+        // Provider.Service.getAttribute() - see SSLContextImpl.get
+        // TrustManagers() for the consumer side. Attribute value is a
+        // string ("true", case-insensitive) matching JCA convention for
+        // boolean-valued service attributes (see "ThreadSafe" precedent).
+        //
+        // Both SunX509 and PKIX variants get the attribute because
+        // TrustManagerFactoryImpl.SimpleFactory (SunX509) and PKIXFactory
+        // (PKIX) both implement the convention.
+        //
+        // See jep-capability-lookup-util.md §"Site 4 in depth" and
+        // jep-provider-lookup-helper.md §"J4 in depth" for the full
+        // producer/consumer explanation.
         HashMap<String, String> autoLoadsAttr = new HashMap<>(1);
         autoLoadsAttr.put("AutoLoadsDefaultTrustStore", "true");
 
