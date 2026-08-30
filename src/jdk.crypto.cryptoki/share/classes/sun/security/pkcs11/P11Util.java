@@ -64,15 +64,17 @@ public final class P11Util {
      * without importing the key onto another token.
      *
      * <p>Providers offered by {@code jdk.crypto.cryptoki} (i.e. instances of
-     * {@link SunPKCS11}) are skipped. This restores the pre-JEP-B safety
-     * envelope precisely: the {@code jdk.crypto.cryptoki} module provides
-     * exactly one JCA {@code Provider} class ({@code SunPKCS11}, declared
-     * {@code final}), so this predicate catches every SunPKCS11 instance
-     * from every configured token slot - including sibling instances in a
-     * multi-slot PKCS #11 deployment. Third-party PKCS #11 providers (from
-     * other vendors) and non-PKCS #11 native-backed providers (SunMSCAPI,
-     * Apple Keychain) are outside this envelope by design; they were also
-     * outside the pre-JEP-B name-anchored lookup's envelope.
+     * {@link SunPKCS11}) are skipped. This restores the recursion invariant
+     * precisely: the {@code jdk.crypto.cryptoki} module provides exactly one
+     * JCA {@code Provider} class ({@code SunPKCS11}, declared {@code final}),
+     * so this predicate catches every SunPKCS11 instance from every
+     * configured token slot - including sibling instances in a multi-slot
+     * PKCS #11 deployment. The pre-JEP-B identity envelope (a name lookup
+     * plus hardcoded-class reflective fallback that returned at most one
+     * specific provider identity) is intentionally not restored; opening
+     * the fallback to third-party PKCS #11 providers and to non-PKCS #11
+     * native-backed providers (SunMSCAPI, Apple Keychain) is the JEP-B
+     * commitment, not a regression.
      *
      * <p>The result is not cached in {@code P11Util}. {@code java.security}
      * exposes no invalidation hook for the JCA provider list, so any
@@ -103,44 +105,25 @@ public final class P11Util {
     }
 
     /**
-     * Non-PKCS #11 provider offering {@code AlgorithmParameters.<algorithm>}.
+     * Returns the first non-PKCS #11 provider offering
+     * {@code KeyFactory.<algorithm>}.
+     *
      * @see #firstProviderFor(String, String)
      */
-    static Provider getFirstAlgorithmParametersProvider(String algorithm)
+    static Provider getFirstFromKeyFactory(String algorithm)
+            throws ProviderException {
+        return firstProviderFor("KeyFactory", algorithm);
+    }
+
+    /**
+     * Returns the first non-PKCS #11 provider offering
+     * {@code AlgorithmParameters.<algorithm>}.
+     *
+     * @see #firstProviderFor(String, String)
+     */
+    static Provider getFirstFromAlgorithmParameters(String algorithm)
             throws ProviderException {
         return firstProviderFor("AlgorithmParameters", algorithm);
-    }
-
-    /**
-     * Non-PKCS #11 provider offering {@code KeyFactory.DH}.
-     * @see #firstProviderFor(String, String)
-     */
-    static Provider getFirstDhProvider() throws ProviderException {
-        return firstProviderFor("KeyFactory", "DH");
-    }
-
-    /**
-     * Non-PKCS #11 provider offering {@code KeyFactory.RSA}.
-     * @see #firstProviderFor(String, String)
-     */
-    static Provider getFirstRsaProvider() throws ProviderException {
-        return firstProviderFor("KeyFactory", "RSA");
-    }
-
-    /**
-     * Non-PKCS #11 provider offering {@code KeyFactory.DSA}.
-     * @see #firstProviderFor(String, String)
-     */
-    static Provider getFirstDsaProvider() throws ProviderException {
-        return firstProviderFor("KeyFactory", "DSA");
-    }
-
-    /**
-     * Non-PKCS #11 provider offering {@code KeyFactory.EC}.
-     * @see #firstProviderFor(String, String)
-     */
-    static Provider getFirstEcProvider() throws ProviderException {
-        return firstProviderFor("KeyFactory", "EC");
     }
 
     static boolean isNSS(Token token) {
