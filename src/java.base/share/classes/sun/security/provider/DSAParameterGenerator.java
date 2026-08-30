@@ -139,26 +139,10 @@ public class DSAParameterGenerator extends AlgorithmParameterGeneratorSpi {
 
             DSAParameterSpec dsaParamSpec =
                 new DSAParameterSpec(paramP, paramQ, paramG);
-            // This class lives INSIDE the SUN provider package
-            // (sun.security.provider). Pre-JEP-D, the call was
-            // AlgorithmParameters.getInstance("DSA", "SUN") - a hardcoded
-            // self-lookup asking JCA for SUN's own DSA AlgorithmParameters
-            // implementation to hold the (p, q, g) values just generated.
-            //
-            // AlgorithmParameters is a data container: any DSA Algorithm
-            // Parameters implementation accepts DSAParameterSpec(p, q, g)
-            // via init() and reproduces the same values on getParameter
-            // Spec(). Substitute-provider deployments (BCFIPS at slot 1)
-            // therefore work identically - the returned wrapper just holds
-            // the same math.
-            //
-            // Pattern A fix per JEP-D drops the "SUN" argument. Stock JVM
-            // returns SUN's implementation (SUN at slot 1, self-lookup);
-            // substitute-provider deployment returns BCFIPS's or the
-            // substitute's implementation, transparently.
-            algParams = AlgorithmParameters.getInstance("DSA");
+            algParams = AlgorithmParameters.getInstance("DSA", "SUN");
             algParams.init(dsaParamSpec);
-        } catch (InvalidParameterSpecException | NoSuchAlgorithmException e) {
+        } catch (InvalidParameterSpecException | NoSuchAlgorithmException |
+                NoSuchProviderException e) {
             // this should never happen
             throw new RuntimeException(e.getMessage());
         }

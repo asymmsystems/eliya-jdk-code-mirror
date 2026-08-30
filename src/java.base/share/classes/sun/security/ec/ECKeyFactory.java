@@ -54,37 +54,20 @@ import java.util.Arrays;
  */
 public final class ECKeyFactory extends KeyFactorySpi {
 
-    // Singleton used by toECKey() for direct SunEC-native key translation.
-    //
-    // This class lives INSIDE the SunEC provider package (sun.security.ec)
-    // and IS SunEC's EC KeyFactory implementation. Pre-JEP-D, the code
-    // routed through KeyFactory.getInstance("EC", "SunEC") to get a JCA
-    // KeyFactory wrapper around this same SPI. That was a self-lookup via
-    // JCA - unnecessary overhead when SunEC-internal code (toECKey below)
-    // is calling SunEC-internal translation.
-    //
-    // JEP-D fix per CA direction 2026-08-30: skip the JCA lookup entirely
-    // and call engineTranslateKey() directly on a same-class singleton.
-    // Same-class access to the protected engineTranslateKey() method is
-    // permitted; no reflection, no unnecessary JCA wrapper, no dependency
-    // on the SunEC name string.
-    //
-    // Trade-off: KeyFactory.translateKey() loops through all registered
-    // EC KeyFactories via nextSpi() when one throws; direct engine
-    // TranslateKey() has no such fallback. This is semantically preferred
-    // for toECKey() because the method's contract is "translate to a Sun
-    // key" (per the toECKey Javadoc). Loop-through would give back a
-    // foreign-provider ECKey instead of a SunEC-native ECPublicKeyImpl /
-    // ECPrivateKeyImpl - contradicting toECKey's stated intent. If SunEC
-    // cannot translate, failing loudly is the correct behavior.
-    //
-    // Toll on the "substitute provider" narrative: none. toECKey() is
-    // called only from SunEC-internal ECDSA/ECDH code paths; those paths
-    // only run when SunEC is providing the ECDSA/ECDH service. Under a
-    // SunEC-source-removed variant, this class is not loaded at all.
-    // The JCA-lookup indirection was never adding substitute-provider
-    // value at this site - only cost.
-    private static final ECKeyFactory INSTANCE = new ECKeyFactory();
+    // Used by translateKey()
+    private static KeyFactory instance;
+
+    private static KeyFactory getInstance() {
+        if (instance == null) {
+            try {
+                instance = KeyFactory.getInstance("EC", "SunEC");
+            } catch (NoSuchProviderException | NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return instance;
+    }
 
     public ECKeyFactory() {
         // empty
@@ -107,11 +90,12 @@ public final class ECKeyFactory extends KeyFactorySpi {
             checkKey(ecKey);
             return ecKey;
         } else {
-            // Direct call on SunEC's own translation SPI - same-class
-            // access; no JCA wrapper overhead; SunEC-native output as
-            // the toECKey javadoc contract requires. See INSTANCE
-            // comment above for the design rationale.
-            return (ECKey) INSTANCE.engineTranslateKey(key);
+            /*
+             * We don't call the engineTranslateKey method directly
+             * because KeyFactory.translateKey adds code to loop through
+             * all key factories.
+             */
+            return (ECKey)getInstance().translateKey(key);
         }
     }
 

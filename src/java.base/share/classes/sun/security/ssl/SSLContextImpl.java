@@ -941,51 +941,14 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         private static TrustManager[] getTrustManagers() throws Exception {
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(
                     TrustManagerFactory.getDefaultAlgorithm());
-
-            // JEP-D class-anchored dispatch (replaces pre-JEP-D
-            // `"SunJSSE".equals(tmf.getProvider().getName())` name check).
-            //
-            // SunJSSE's TrustManagerFactoryImpl.SimpleFactory and
-            // PKIXFactory implement a convention that is NOT part of the
-            // JCA spec: calling engineInit((KeyStore) null) auto-loads
-            // the JDK's default truststore (javax.net.ssl.trustStore ->
-            // ${JAVA_HOME}/lib/security/jssecacerts -> cacerts). Third-
-            // party TMF impls behave differently on init(null): some
-            // throw NPE, some return trust managers with no trusted
-            // certs, some are undefined - the convention is SunJSSE-
-            // internal.
-            //
-            // The pre-JEP-D name check hardcoded the string "SunJSSE",
-            // an obvious DIP violation. This replacement uses `instance
-            // of SunJSSE` - a class-anchored same-package check that
-            // survives renames, is refactor-safe, and matches JEP-B's
-            // `instanceof SunPKCS11` precedent in P11Util.firstProvider
-            // For. Both are cohesion-not-coupling within a single-
-            // module implementation package:
-            //   * SunJSSE lives at sun.security.ssl.SunJSSE (same
-            //     package as SSLContextImpl); the check compiles with
-            //     no new imports and no module-graph edit.
-            //   * The check semantically expresses "is this the
-            //     Oracle-supplied JSSE implementation whose TMF I know
-            //     supports the null-KeyStore-loads-default convention"
-            //     - the actual invariant, not a name-based proxy for it.
-            //
-            // Third-party JSSE providers (BCJSSE, RSA BSAFE, IBM JSSE2)
-            // fall through to the explicit-KeyStore branch - IDENTICAL
-            // to their pre-JEP-D behavior (they never matched the
-            // "SunJSSE" name check either). Zero behavior change for
-            // any provider that was not SunJSSE pre-JEP-D.
-            //
-            // See jep-capability-lookup-util.md §"Site 4 in depth" and
-            // jep-provider-lookup-helper.md §"J4 in depth" for the full
-            // discussion of why class-anchored dispatch was preferred
-            // over the earlier attribute-marker draft.
-            if (tmf.getProvider() instanceof SunJSSE) {
-                // SunJSSE's TMF auto-loads the default truststore on
-                // null. Cached trust materials may be used for perf.
+            if ("SunJSSE".equals(tmf.getProvider().getName())) {
+                // The implementation will load the default KeyStore
+                // automatically.  Cached trust materials may be used
+                // for performance improvement.
                 tmf.init((KeyStore)null);
             } else {
-                // Non-SunJSSE TMF: pass an explicit KeyStore.
+                // Use the explicitly specified KeyStore for third party's
+                // TrustManagerFactory implementation.
                 KeyStore ks = TrustStoreManager.getTrustedKeyStore();
                 tmf.init(ks);
             }
