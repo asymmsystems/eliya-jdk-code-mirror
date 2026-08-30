@@ -106,7 +106,7 @@ final class P11PBECipher extends CipherSpi {
     @Override
     protected AlgorithmParameters engineGetParameters() {
         return pbes2Params.getAlgorithmParameters(blkSize, pbeAlg,
-                P11Util.getFirstDhProvider(token.provider),
+                P11Util.getFirstFromKeyFactory("DH"),
                 JCAUtil.getSecureRandom());
     }
 

@@ -294,8 +294,7 @@ final class P11Cipher extends CipherSpi {
         try {
             AlgorithmParameters params =
                     AlgorithmParameters.getInstance(keyAlgorithm,
-                    P11Util.getFirstAlgorithmParametersProvider(
-                        keyAlgorithm, token.provider));
+                    P11Util.getFirstFromAlgorithmParameters(keyAlgorithm));
             params.init(ivSpec);
             return params;
         } catch (GeneralSecurityException e) {

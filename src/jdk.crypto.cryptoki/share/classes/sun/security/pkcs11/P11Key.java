@@ -770,7 +770,7 @@ abstract class P11Key implements Key, Length {
                     // XXX make constructor in SunRsaSign provider public
                     // and call it directly
                     KeyFactory factory = KeyFactory.getInstance
-                        ("RSA", P11Util.getFirstRsaProvider(token.provider));
+                        ("RSA", P11Util.getFirstFromKeyFactory("RSA"));
                     Key newKey = factory.translateKey(this);
                     encoded = newKey.getEncoded();
                 } catch (GeneralSecurityException e) {
@@ -1077,7 +1077,7 @@ abstract class P11Key implements Key, Length {
                     DHPrivateKeySpec spec = new DHPrivateKeySpec
                         (x, params.getP(), params.getG());
                     KeyFactory kf = KeyFactory.getInstance
-                        ("DH", P11Util.getFirstDhProvider(token.provider));
+                        ("DH", P11Util.getFirstFromKeyFactory("DH"));
                     Key key = kf.generatePrivate(spec);
                     encoded = key.getEncoded();
                 } catch (GeneralSecurityException e) {
@@ -1157,7 +1157,7 @@ abstract class P11Key implements Key, Length {
                     DHPublicKeySpec spec = new DHPublicKeySpec
                         (y, params.getP(), params.getG());
                     KeyFactory kf = KeyFactory.getInstance
-                        ("DH", P11Util.getFirstDhProvider(token.provider));
+                        ("DH", P11Util.getFirstFromKeyFactory("DH"));
                     Key key = kf.generatePublic(spec);
                     encoded = key.getEncoded();
                 } catch (GeneralSecurityException e) {
