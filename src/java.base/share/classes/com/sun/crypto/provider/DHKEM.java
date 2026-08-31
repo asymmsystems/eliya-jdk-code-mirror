@@ -265,12 +265,38 @@ public class DHKEM implements KEMSpi {
         private PublicKey getPublicKey(PrivateKey sk)
                 throws InvalidKeyException {
             if (!(sk instanceof InternalPrivateKey)) {
-                try {
-                    KeyFactory kf = KeyFactory.getInstance(keyAlgorithm, "SunEC");
-                    sk = (PrivateKey) kf.translateKey(sk);
-                } catch (Exception e) {
-                    throw new InvalidKeyException("Error translating key", e);
+                // This method has to derive a public key from a private key.
+                // JCA exposes no public API for that, so the JDK does it
+                // through sun.security.util.InternalPrivateKey, which only
+                // the JDK's own key classes implement. The requirement is
+                // therefore not "give me SunEC" but "give me a KeyFactory
+                // whose keys can derive their public half". Ask each
+                // registered provider in turn and keep the first
+                // translation that satisfies that, instead of naming one
+                // provider. On a stock JDK the first match is SunEC, which
+                // is what the previous hardcoded lookup asked for.
+                PrivateKey translated = null;
+                for (Provider p : Security.getProviders()) {
+                    try {
+                        KeyFactory kf =
+                                KeyFactory.getInstance(keyAlgorithm, p);
+                        Key k = kf.translateKey(sk);
+                        if (k instanceof InternalPrivateKey) {
+                            translated = (PrivateKey) k;
+                            break;
+                        }
+                    } catch (GeneralSecurityException e) {
+                        // This provider cannot translate the key, or does
+                        // not offer this algorithm. Try the next one.
+                    }
                 }
+                if (translated == null) {
+                    throw new InvalidKeyException("Error translating key: "
+                            + "no registered provider produces a "
+                            + keyAlgorithm + " key that can derive its "
+                            + "public half");
+                }
+                sk = translated;
             }
             if (sk instanceof InternalPrivateKey ik) {
                 try {

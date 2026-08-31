@@ -537,11 +537,40 @@ abstract class CSignature extends SignatureSpi {
                 publicKey = (CPublicKey) key;
             } else {
                 if (fallbackSignature == null) {
-                    try {
-                        fallbackSignature = Signature.getInstance(
-                                "RSASSA-PSS", "SunRsaSign");
-                    } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-                        throw new InvalidKeyException("Invalid key", e);
+                    // A raw public key cannot be imported into CNG, so
+                    // verification has to be done by some provider other
+                    // than this one. SunMSCAPI registers RSASSA-PSS itself,
+                    // pointing at this very class, so an unqualified lookup
+                    // could return us and recurse. Skip this provider and
+                    // take the next one offering the algorithm.
+                    //
+                    // Naming SunMSCAPI here is cohesion rather than
+                    // coupling: CSignature and SunMSCAPI are the same
+                    // module's own classes in the same package. This is the
+                    // shape JEP-B settled on for the same problem in
+                    // sun.security.pkcs11.P11Util, which skips instances of
+                    // its own provider class rather than naming a
+                    // competitor.
+                    Provider[] candidates =
+                            Security.getProviders("Signature.RSASSA-PSS");
+                    if (candidates != null) {
+                        for (Provider p : candidates) {
+                            if (p instanceof SunMSCAPI) {
+                                continue;
+                            }
+                            try {
+                                fallbackSignature =
+                                        Signature.getInstance("RSASSA-PSS", p);
+                                break;
+                            } catch (NoSuchAlgorithmException e) {
+                                // Try the next candidate.
+                            }
+                        }
+                    }
+                    if (fallbackSignature == null) {
+                        throw new InvalidKeyException("Invalid key: no "
+                                + "RSASSA-PSS implementation available "
+                                + "outside this provider");
                     }
                 }
                 fallbackSignature.initVerify(key);
