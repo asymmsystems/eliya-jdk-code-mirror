@@ -275,6 +275,18 @@ public class DHKEM implements KEMSpi {
                 // translation that satisfies that, instead of naming one
                 // provider. On a stock JDK the first match is SunEC, which
                 // is what the previous hardcoded lookup asked for.
+                //
+                // Be clear about what this does and does not buy. It does
+                // not let a third-party provider serve this call:
+                // sun.security.util is exported only to a fixed list of
+                // jdk.* modules, so a provider on the class path cannot
+                // implement InternalPrivateKey even if it wanted to. What
+                // it buys is that the code now states its actual
+                // requirement instead of one provider that happens to meet
+                // it, and reports a useful error when nothing does. Making
+                // this genuinely substitutable needs a public API for
+                // deriving a public key from a private key, which JCA does
+                // not have.
                 PrivateKey translated = null;
                 for (Provider p : Security.getProviders()) {
                     try {
