@@ -538,13 +538,9 @@ abstract class CSignature extends SignatureSpi {
             } else {
                 if (fallbackSignature == null) {
                     try {
-                        // Capability lookup: JCA returns the first registered
-                        // provider offering Signature.RSASSA-PSS. On a stock
-                        // JDK that is SunRsaSign, matching the previous
-                        // hardcoded lookup.
                         fallbackSignature = Signature.getInstance(
-                                "RSASSA-PSS");
-                    } catch (NoSuchAlgorithmException e) {
+                                "RSASSA-PSS", "SunRsaSign");
+                    } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
                         throw new InvalidKeyException("Invalid key", e);
                     }
                 }

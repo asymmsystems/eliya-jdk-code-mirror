@@ -266,12 +266,7 @@ public class DHKEM implements KEMSpi {
                 throws InvalidKeyException {
             if (!(sk instanceof InternalPrivateKey)) {
                 try {
-                    // Capability lookup: JCA returns the first registered
-                    // provider offering KeyFactory for this algorithm. On a
-                    // stock JDK that is SunEC, matching the previous
-                    // hardcoded lookup; on a distribution that substitutes
-                    // an alternative EC provider it is that provider.
-                    KeyFactory kf = KeyFactory.getInstance(keyAlgorithm);
+                    KeyFactory kf = KeyFactory.getInstance(keyAlgorithm, "SunEC");
                     sk = (PrivateKey) kf.translateKey(sk);
                 } catch (Exception e) {
                     throw new InvalidKeyException("Error translating key", e);
