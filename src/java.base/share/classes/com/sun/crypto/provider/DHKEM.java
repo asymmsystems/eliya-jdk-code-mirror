@@ -297,16 +297,18 @@ public class DHKEM implements KEMSpi {
                             translated = (PrivateKey) k;
                             break;
                         }
-                    } catch (GeneralSecurityException e) {
-                        // This provider cannot translate the key, or does
-                        // not offer this algorithm. Try the next one.
+                    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+                        // NoSuchAlgorithmException: this provider does not
+                        // offer the algorithm. InvalidKeyException: it does,
+                        // but cannot translate this key. Either way, try the
+                        // next provider. These are the only two checked
+                        // exceptions the two calls above declare.
                     }
                 }
                 if (translated == null) {
-                    throw new InvalidKeyException("Error translating key: "
-                            + "no registered provider produces a "
-                            + keyAlgorithm + " key that can derive its "
-                            + "public half");
+                    throw new InvalidKeyException(
+                            "No provider produces a " + keyAlgorithm
+                            + " key that can derive its public half");
                 }
                 sk = translated;
             }
