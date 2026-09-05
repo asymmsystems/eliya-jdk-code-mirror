@@ -265,12 +265,59 @@ public class DHKEM implements KEMSpi {
         private PublicKey getPublicKey(PrivateKey sk)
                 throws InvalidKeyException {
             if (!(sk instanceof InternalPrivateKey)) {
-                try {
-                    KeyFactory kf = KeyFactory.getInstance(keyAlgorithm, "SunEC");
-                    sk = (PrivateKey) kf.translateKey(sk);
-                } catch (Exception e) {
-                    throw new InvalidKeyException("Error translating key", e);
+                // This method has to derive a public key from a private key.
+                // JCA exposes no public API for that, so the JDK does it
+                // through sun.security.util.InternalPrivateKey, which only
+                // the JDK's own key classes implement. The requirement is
+                // therefore not "give me SunEC" but "give me a KeyFactory
+                // whose keys can derive their public half". Ask each
+                // registered provider in turn and keep the first
+                // translation that satisfies that, instead of naming one
+                // provider. On a stock JDK the first match is SunEC, which
+                // is what the previous hardcoded lookup asked for.
+                //
+                // Be clear about what this does and does not buy. It does
+                // not let a third-party provider serve this call:
+                // sun.security.util is exported only to a fixed list of
+                // jdk.* modules, so a provider on the class path cannot
+                // implement InternalPrivateKey even if it wanted to. What
+                // it buys is that the code now states its actual
+                // requirement instead of one provider that happens to meet
+                // it, and reports a useful error when nothing does. Making
+                // this genuinely substitutable needs a public API for
+                // deriving a public key from a private key, which JCA does
+                // not have.
+                PrivateKey translated = null;
+                Exception lastException = null;
+                for (Provider p : Security.getProviders()) {
+                    try {
+                        KeyFactory kf =
+                                KeyFactory.getInstance(keyAlgorithm, p);
+                        Key k = kf.translateKey(sk);
+                        if (k instanceof InternalPrivateKey) {
+                            translated = (PrivateKey) k;
+                            break;
+                        }
+                    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+                        // NoSuchAlgorithmException: this provider does not
+                        // offer the algorithm. InvalidKeyException: it does,
+                        // but cannot translate this key. Either way, try the
+                        // next provider. These are the only two checked
+                        // exceptions the two calls above declare.
+                        lastException = e;
+                    }
                 }
+                if (translated == null) {
+                    // Same message and cause shape as the code this replaces,
+                    // which threw InvalidKeyException("Error translating key", e)
+                    // when the single hardcoded provider failed. Keeping the
+                    // message stable matters: exception text is not specified
+                    // API, but tests and log-scrapers match on it, and this
+                    // change has no reason to break them.
+                    throw new InvalidKeyException("Error translating key",
+                            lastException);
+                }
+                sk = translated;
             }
             if (sk instanceof InternalPrivateKey ik) {
                 try {

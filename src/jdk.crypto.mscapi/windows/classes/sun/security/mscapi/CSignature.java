@@ -537,12 +537,7 @@ abstract class CSignature extends SignatureSpi {
                 publicKey = (CPublicKey) key;
             } else {
                 if (fallbackSignature == null) {
-                    try {
-                        fallbackSignature = Signature.getInstance(
-                                "RSASSA-PSS", "SunRsaSign");
-                    } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-                        throw new InvalidKeyException("Invalid key", e);
-                    }
+                    fallbackSignature = firstNonSelfRsaPssSignature();
                 }
                 fallbackSignature.initVerify(key);
                 if (pssParams != null) {
@@ -555,6 +550,58 @@ abstract class CSignature extends SignatureSpi {
                 publicKey = null;
             }
             resetDigest();
+        }
+
+        /**
+         * Returns an RSASSA-PSS {@code Signature} from the first installed
+         * provider that offers one and is not this provider.
+         *
+         * <p>A raw public key cannot be imported into CNG, so PSS
+         * verification has to be performed by a provider other than this
+         * one. The code this replaces asked for {@code "SunRsaSign"} by
+         * name. SunMSCAPI is Windows-only and SunRsaSign precedes it in the
+         * default provider list, so on a stock configuration both select the
+         * same implementation; where SunRsaSign has been removed or
+         * reordered, the old code failed outright and this one continues to
+         * the next candidate.
+         *
+         * <p>There is no single-shot JCA call for "any provider other than
+         * this one". {@link Signature#getInstance(String)} is single-shot,
+         * but SunMSCAPI registers RSASSA-PSS itself pointing at this very
+         * class, so an unqualified lookup can select us and recurse.
+         * {@link Security#getProviders(String)} applies the same service
+         * filter {@code getInstance} applies and returns the candidates in
+         * preference order, which is the closest the API offers.
+         *
+         * <p>Naming SunMSCAPI here is cohesion rather than coupling:
+         * {@code CSignature} and {@code SunMSCAPI} are the same module's own
+         * classes in the same package. This is the shape adopted for the
+         * same problem in {@code sun.security.pkcs11.P11Util}, which skips
+         * instances of its own provider class rather than naming a
+         * competitor.
+         *
+         * @throws InvalidKeyException if no other provider offers RSASSA-PSS
+         */
+        private static Signature firstNonSelfRsaPssSignature()
+                throws InvalidKeyException {
+            NoSuchAlgorithmException lastException = null;
+            Provider[] candidates =
+                    Security.getProviders("Signature.RSASSA-PSS");
+            if (candidates != null) {
+                for (Provider p : candidates) {
+                    if (p instanceof SunMSCAPI) {
+                        continue;
+                    }
+                    try {
+                        return Signature.getInstance("RSASSA-PSS", p);
+                    } catch (NoSuchAlgorithmException e) {
+                        lastException = e;
+                    }
+                }
+            }
+            // Same message and cause shape as the code this replaces, so a
+            // caller matching on the message still matches.
+            throw new InvalidKeyException("Invalid key", lastException);
         }
 
         @Override
