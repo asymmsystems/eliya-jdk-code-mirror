@@ -105,8 +105,12 @@ final class P11PBECipher extends CipherSpi {
     // see JCE spec
     @Override
     protected AlgorithmParameters engineGetParameters() {
+        // PBEUtil passes this provider to
+        // AlgorithmParameters.getInstance(pbeAlg, provider), so the
+        // capability to look up is AlgorithmParameters for this cipher's
+        // own PBE algorithm.
         return pbes2Params.getAlgorithmParameters(blkSize, pbeAlg,
-                P11Util.getFirstFromKeyFactory("DH"),
+                P11Util.getFirstFromAlgorithmParameters(pbeAlg),
                 JCAUtil.getSecureRandom());
     }
 

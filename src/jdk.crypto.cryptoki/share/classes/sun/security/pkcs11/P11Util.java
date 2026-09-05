@@ -32,6 +32,8 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.security.*;
 
+import javax.crypto.KeyAgreement;
+
 import sun.security.jca.Providers;
 import sun.security.pkcs11.wrapper.PKCS11Exception;
 import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
@@ -108,9 +110,14 @@ public final class P11Util {
      * Returns the first non-PKCS #11 provider offering
      * {@code KeyFactory.<algorithm>}.
      *
+     * <p>Private on purpose: every caller inside this provider wants the
+     * {@code KeyFactory} itself, and {@link #getSoftwareKeyFactory(String)}
+     * is the way to get one. Handing out the bare provider is what lets a
+     * caller request some other service from it.
+     *
      * @see #firstProviderFor(String, String)
      */
-    static Provider getFirstFromKeyFactory(String algorithm)
+    private static Provider getFirstFromKeyFactory(String algorithm)
             throws ProviderException {
         return firstProviderFor("KeyFactory", algorithm);
     }
@@ -148,6 +155,29 @@ public final class P11Util {
     static Provider getFirstFromAlgorithmParameters(String algorithm)
             throws ProviderException {
         return firstProviderFor("AlgorithmParameters", algorithm);
+    }
+
+    /**
+     * Returns a {@code KeyAgreement} for {@code algorithm} from the first
+     * non-PKCS #11 provider that offers one.
+     *
+     * <p>Resolving the provider and constructing the service in one method
+     * is what keeps the two in step. A caller that asks
+     * {@link #firstProviderFor(String, String)} for one service type and
+     * then requests a different one from the returned provider compiles,
+     * runs on any chain where a single provider happens to offer both, and
+     * fails only where the chain is rearranged.
+     *
+     * @param algorithm key agreement algorithm, e.g. "DH"
+     * @throws ProviderException if no non-PKCS #11 provider offers
+     *         {@code KeyAgreement.<algorithm>}
+     * @throws NoSuchAlgorithmException if that provider stops offering it
+     *         between the lookup and the request
+     */
+    static KeyAgreement getSoftwareKeyAgreement(String algorithm)
+            throws NoSuchAlgorithmException, ProviderException {
+        return KeyAgreement.getInstance(algorithm,
+                firstProviderFor("KeyAgreement", algorithm));
     }
 
     static boolean isNSS(Token token) {
