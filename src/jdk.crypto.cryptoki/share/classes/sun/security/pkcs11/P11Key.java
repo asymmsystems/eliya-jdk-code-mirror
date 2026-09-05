@@ -886,6 +886,9 @@ abstract class P11Key implements Key, Length {
                     // Build the X.509 encoding with a non-PKCS #11 DSA
                     // KeyFactory. getSoftwareKeyFactory skips every
                     // SunPKCS11 instance, so this cannot recurse.
+                    // ProviderException on failure is the same
+                    // contract the RSA and DH keys in this class
+                    // already have for getEncodedInternal.
                     KeyFactory factory =
                         P11Util.getSoftwareKeyFactory("DSA");
                     Key key = factory.generatePublic(new DSAPublicKeySpec
@@ -993,6 +996,9 @@ abstract class P11Key implements Key, Length {
                     // Build the PKCS#8 encoding with a non-PKCS #11 DSA
                     // KeyFactory. getSoftwareKeyFactory skips every
                     // SunPKCS11 instance, so this cannot recurse.
+                    // ProviderException on failure is the same
+                    // contract the RSA and DH keys in this class
+                    // already have for getEncodedInternal.
                     KeyFactory factory =
                         P11Util.getSoftwareKeyFactory("DSA");
                     Key key = factory.generatePrivate(new DSAPrivateKeySpec
