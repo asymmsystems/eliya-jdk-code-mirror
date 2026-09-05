@@ -288,6 +288,7 @@ public class DHKEM implements KEMSpi {
                 // deriving a public key from a private key, which JCA does
                 // not have.
                 PrivateKey translated = null;
+                Exception lastException = null;
                 for (Provider p : Security.getProviders()) {
                     try {
                         KeyFactory kf =
@@ -303,12 +304,18 @@ public class DHKEM implements KEMSpi {
                         // but cannot translate this key. Either way, try the
                         // next provider. These are the only two checked
                         // exceptions the two calls above declare.
+                        lastException = e;
                     }
                 }
                 if (translated == null) {
-                    throw new InvalidKeyException(
-                            "No provider produces a " + keyAlgorithm
-                            + " key that can derive its public half");
+                    // Same message and cause shape as the code this replaces,
+                    // which threw InvalidKeyException("Error translating key", e)
+                    // when the single hardcoded provider failed. Keeping the
+                    // message stable matters: exception text is not specified
+                    // API, but tests and log-scrapers match on it, and this
+                    // change has no reason to break them.
+                    throw new InvalidKeyException("Error translating key",
+                            lastException);
                 }
                 sk = translated;
             }
