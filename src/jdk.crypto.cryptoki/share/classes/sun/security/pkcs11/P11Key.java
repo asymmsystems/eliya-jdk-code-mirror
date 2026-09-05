@@ -882,9 +882,18 @@ abstract class P11Key implements Key, Length {
             token.ensureValid();
             if (encoded == null) {
                 fetchValues();
-                Key key = new sun.security.provider.DSAPublicKey
-                        (y, params.getP(), params.getQ(), params.getG());
-                encoded = key.getEncoded();
+                try {
+                    // Build the X.509 encoding with a non-PKCS #11 DSA
+                    // KeyFactory. getFirstFromKeyFactory skips every
+                    // SunPKCS11 instance, so this cannot recurse.
+                    KeyFactory factory = KeyFactory.getInstance
+                        ("DSA", P11Util.getFirstFromKeyFactory("DSA"));
+                    Key key = factory.generatePublic(new DSAPublicKeySpec
+                        (y, params.getP(), params.getQ(), params.getG()));
+                    encoded = key.getEncoded();
+                } catch (GeneralSecurityException e) {
+                    throw new ProviderException(e);
+                }
             }
             return encoded;
         }
@@ -980,9 +989,18 @@ abstract class P11Key implements Key, Length {
             token.ensureValid();
             if (encoded == null) {
                 fetchValues();
-                Key key = new sun.security.provider.DSAPrivateKey
-                        (x, params.getP(), params.getQ(), params.getG());
-                encoded = key.getEncoded();
+                try {
+                    // Build the PKCS#8 encoding with a non-PKCS #11 DSA
+                    // KeyFactory. getFirstFromKeyFactory skips every
+                    // SunPKCS11 instance, so this cannot recurse.
+                    KeyFactory factory = KeyFactory.getInstance
+                        ("DSA", P11Util.getFirstFromKeyFactory("DSA"));
+                    Key key = factory.generatePrivate(new DSAPrivateKeySpec
+                        (x, params.getP(), params.getQ(), params.getG()));
+                    encoded = key.getEncoded();
+                } catch (GeneralSecurityException e) {
+                    throw new ProviderException(e);
+                }
             }
             return encoded;
         }
