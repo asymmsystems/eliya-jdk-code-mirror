@@ -163,20 +163,10 @@ public class CtrDrbg extends AbstractDrbg {
     @Override
     protected void initEngine() {
         try {
-            /*
-             * Use the local SunJCE implementation to avoid native
-             * performance overhead.
-             */
-            cipher = Cipher.getInstance(cipherAlg, "SunJCE");
-        } catch (NoSuchProviderException | NoSuchAlgorithmException
-                | NoSuchPaddingException e) {
-            // Fallback to any available.
-            try {
-                cipher = Cipher.getInstance(cipherAlg);
-            } catch (NoSuchAlgorithmException | NoSuchPaddingException exc) {
-                throw new InternalError(
-                    "internal error: " + cipherAlg + " not available.", exc);
-            }
+            cipher = Cipher.getInstance(cipherAlg);
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new InternalError(
+                "internal error: " + cipherAlg + " not available.", e);
         }
     }
 

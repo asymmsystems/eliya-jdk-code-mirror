@@ -29,7 +29,6 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.SecureRandomParameters;
 import java.util.Arrays;
 import java.util.Collections;
@@ -102,19 +101,10 @@ public class HmacDrbg extends AbstractHashDrbg {
     protected void initEngine() {
         macAlg = "HmacSHA" + algorithm.substring(4);
         try {
-            /*
-             * Use the local SunJCE implementation to avoid native
-             * performance overhead.
-             */
-            mac = Mac.getInstance(macAlg, "SunJCE");
-        } catch (NoSuchProviderException | NoSuchAlgorithmException e) {
-            // Fallback to any available.
-            try {
-                mac = Mac.getInstance(macAlg);
-            } catch (NoSuchAlgorithmException exc) {
-                throw new InternalError(
-                    "internal error: " + macAlg + " not available.", exc);
-            }
+            mac = Mac.getInstance(macAlg);
+        } catch (NoSuchAlgorithmException e) {
+            throw new InternalError(
+                "internal error: " + macAlg + " not available.", e);
         }
     }
 
