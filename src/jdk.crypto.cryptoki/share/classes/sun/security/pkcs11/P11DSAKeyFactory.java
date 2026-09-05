@@ -285,8 +285,7 @@ final class P11DSAKeyFactory extends P11KeyFactory {
     }
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
-        return KeyFactory.getInstance("DSA",
-            P11Util.getFirstFromKeyFactory("DSA"));
+        return P11Util.getSoftwareKeyFactory("DSA");
     }
 
 }

@@ -116,6 +116,30 @@ public final class P11Util {
     }
 
     /**
+     * Returns a {@code KeyFactory} for {@code algorithm} from the first
+     * non-PKCS #11 provider that offers one.
+     *
+     * <p>This is the form every caller inside this provider wants: a
+     * SunPKCS11 key factory that needs a software key factory to parse an
+     * encoding or build one wants the factory, not the provider it came
+     * from. Resolving the provider and constructing the factory in one
+     * place keeps the two steps from drifting apart, which is how
+     * {@code KeyFactory} ends up being asked of a provider that was
+     * selected for some other service.
+     *
+     * @param algorithm key algorithm, e.g. "DSA", "RSA", "DH", "EC"
+     * @throws ProviderException if no non-PKCS #11 provider offers
+     *         {@code KeyFactory.<algorithm>}
+     * @throws NoSuchAlgorithmException if that provider stops offering it
+     *         between the lookup and the request
+     */
+    static KeyFactory getSoftwareKeyFactory(String algorithm)
+            throws NoSuchAlgorithmException, ProviderException {
+        return KeyFactory.getInstance(algorithm,
+                getFirstFromKeyFactory(algorithm));
+    }
+
+    /**
      * Returns the first non-PKCS #11 provider offering
      * {@code AlgorithmParameters.<algorithm>}.
      *
