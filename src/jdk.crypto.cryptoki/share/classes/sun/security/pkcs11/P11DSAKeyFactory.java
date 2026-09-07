@@ -62,15 +62,28 @@ final class P11DSAKeyFactory extends P11KeyFactory {
                 // then recurse: the DSAPublicKey branch above reads the
                 // components back out. implGetSoftwareFactory() skips this
                 // provider, so the lookup cannot return this class.
+                //
+                // The type check is what bounds the recursion. The key class
+                // this replaced was a DSAPublicKey by construction, so one
+                // step always reached the branch above. A KeyFactory only
+                // promises a PublicKey, and one that returns a key which is
+                // not a DSAPublicKey but still reports "X.509" would send
+                // the same encoding through this branch forever.
                 byte[] encoded = key.getEncoded();
+                PublicKey parsed;
                 try {
-                    key = implGetSoftwareFactory().generatePublic(
+                    parsed = implGetSoftwareFactory().generatePublic(
                             new X509EncodedKeySpec(encoded));
                 } catch (GeneralSecurityException e) {
                     throw new InvalidKeyException(
                             "Could not create DSA public key", e);
                 }
-                return implTranslatePublicKey(key);
+                if (!(parsed instanceof DSAPublicKey)) {
+                    throw new InvalidKeyException("Could not create DSA "
+                            + "public key: the DSA KeyFactory returned a "
+                            + parsed.getClass().getName());
+                }
+                return implTranslatePublicKey(parsed);
             } else {
                 throw new InvalidKeyException("PublicKey must be instance "
                         + "of DSAPublicKey or have X.509 encoding");
@@ -96,15 +109,24 @@ final class P11DSAKeyFactory extends P11KeyFactory {
                 // then recurse: the DSAPrivateKey branch above reads the
                 // components back out. implGetSoftwareFactory() skips this
                 // provider, so the lookup cannot return this class.
+                //
+                // The type check is what bounds the recursion. See the
+                // public counterpart above.
                 byte[] encoded = key.getEncoded();
+                PrivateKey parsed;
                 try {
-                    key = implGetSoftwareFactory().generatePrivate(
+                    parsed = implGetSoftwareFactory().generatePrivate(
                             new PKCS8EncodedKeySpec(encoded));
                 } catch (GeneralSecurityException e) {
                     throw new InvalidKeyException(
                             "Could not create DSA private key", e);
                 }
-                return implTranslatePrivateKey(key);
+                if (!(parsed instanceof DSAPrivateKey)) {
+                    throw new InvalidKeyException("Could not create DSA "
+                            + "private key: the DSA KeyFactory returned a "
+                            + parsed.getClass().getName());
+                }
+                return implTranslatePrivateKey(parsed);
             } else {
                 throw new InvalidKeyException("PrivateKey must be instance "
                         + "of DSAPrivateKey or have PKCS#8 encoding");
