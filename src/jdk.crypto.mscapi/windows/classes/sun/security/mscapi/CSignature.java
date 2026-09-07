@@ -33,6 +33,8 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.math.BigInteger;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 import sun.security.rsa.RSAKeyFactory;
@@ -584,7 +586,7 @@ abstract class CSignature extends SignatureSpi {
          */
         private static Signature firstNonSelfRsaPssSignature()
                 throws InvalidKeyException {
-            NoSuchAlgorithmException lastException = null;
+            List<NoSuchAlgorithmException> failures = new ArrayList<>();
             Provider[] candidates =
                     Security.getProviders("Signature.RSASSA-PSS");
             if (candidates != null) {
@@ -595,13 +597,24 @@ abstract class CSignature extends SignatureSpi {
                     try {
                         return Signature.getInstance("RSASSA-PSS", p);
                     } catch (NoSuchAlgorithmException e) {
-                        lastException = e;
+                        failures.add(e);
                     }
                 }
             }
-            // Same message and cause shape as the code this replaces, so a
-            // caller matching on the message still matches.
-            throw new InvalidKeyException("Invalid key", lastException);
+            if (failures.isEmpty()) {
+                // No provider other than this one offers the algorithm, so
+                // nothing was tried and there is no cause to report.
+                throw new InvalidKeyException("Invalid key");
+            }
+            // Report all of them. The first is the cause, so getCause() stays
+            // non-null as it was when one hardcoded provider failed, and the
+            // rest are suppressed.
+            InvalidKeyException failure =
+                    new InvalidKeyException("Invalid key", failures.get(0));
+            for (int i = 1; i < failures.size(); i++) {
+                failure.addSuppressed(failures.get(i));
+            }
+            throw failure;
         }
 
         @Override
