@@ -288,9 +288,12 @@ public class DHKEM implements KEMSpi {
          * provider, and it is not meant to. InternalPrivateKey lives in
          * sun.security.util, which is exported only to a fixed list of jdk.*
          * modules, so a provider on the class path cannot implement it.
-         * Lifting that limit needs a public API for the operation. One was
-         * proposed and rejected upstream as JDK-8372538 on 2026-05-02, so it
-         * is upstream-owned and out of scope here. What this does buy is that
+         * Lifting that limit needs a public API for the operation. One
+         * placement, a method on java.security.PrivateKey, was proposed and
+         * closed Won't Fix as JDK-8372538 on 2026-05-02; the objection
+         * recorded there was to that placement rather than to the operation
+         * itself. Either way it is upstream-owned and out of scope here.
+         * What this does buy is that
          * the code states its actual requirement rather than one provider
          * that happens to meet it, and reports every reason it failed.
          */

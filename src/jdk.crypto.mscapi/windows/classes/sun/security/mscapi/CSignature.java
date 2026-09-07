@@ -602,9 +602,16 @@ abstract class CSignature extends SignatureSpi {
                 }
             }
             if (failures.isEmpty()) {
-                // No provider other than this one offers the algorithm, so
-                // nothing was tried and there is no cause to report.
-                throw new InvalidKeyException("Invalid key");
+                // Nothing was tried, because no provider other than this one
+                // offers the algorithm. This is the failure a trimmed or
+                // reordered provider list produces, so it is the one an
+                // operator actually meets, and leaving it without a cause
+                // gives no way to tell a bad key from a short provider list.
+                // The message is fixed; the cause carries the detail.
+                throw new InvalidKeyException("Invalid key",
+                        new NoSuchAlgorithmException("no installed provider "
+                                + "other than SunMSCAPI offers "
+                                + "Signature.RSASSA-PSS"));
             }
             // Report all of them. The first is the cause, so getCause() stays
             // non-null as it was when one hardcoded provider failed, and the
