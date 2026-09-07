@@ -22,11 +22,15 @@
  * questions.
  */
 
+import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.KeyFactorySpi;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
+import java.security.Security;
 import java.security.spec.DSAPrivateKeySpec;
 import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.KeySpec;
@@ -181,6 +185,80 @@ public class TestKeyFactory extends PKCS11Test {
         testKey(key, key5);
     }
 
+
+    /*
+     * A DSA KeyFactory that parses an encoding into a key which is not a
+     * DSAPublicKey or DSAPrivateKey, yet still reports the same format.
+     *
+     * P11DSAKeyFactory handles an encoding-only key by asking another
+     * provider's KeyFactory to parse it and then re-entering itself to read
+     * the components out. A provider like this one sends the same encoding
+     * back round, so the re-entry has to be bounded by a type check rather
+     * than by the shape of whatever the delegate returned.
+     */
+    public static final class WrongTypeKeyFactory extends KeyFactorySpi {
+        @Override
+        protected PublicKey engineGeneratePublic(KeySpec spec) {
+            byte[] encoded = ((X509EncodedKeySpec) spec).getEncoded();
+            return encodingOnlyPublic(encoded);
+        }
+        @Override
+        protected PrivateKey engineGeneratePrivate(KeySpec spec) {
+            byte[] encoded = ((PKCS8EncodedKeySpec) spec).getEncoded();
+            return encodingOnlyPrivate(encoded);
+        }
+        @Override
+        protected <T extends KeySpec> T engineGetKeySpec(Key key, Class<T> c) {
+            throw new UnsupportedOperationException();
+        }
+        @Override
+        protected Key engineTranslateKey(Key key) {
+            return key;
+        }
+    }
+
+    public static final class WrongTypeProvider extends Provider {
+        private static final long serialVersionUID = 1L;
+
+        public WrongTypeProvider() {
+            super("WrongTypeDSA", "1.0",
+                    "DSA KeyFactory returning a non-DSAKey");
+            putService(new Service(this, "KeyFactory", "DSA",
+                    WrongTypeKeyFactory.class.getName(), null, null));
+        }
+    }
+
+    /*
+     * Translating an encoding-only key must terminate even when the DSA
+     * KeyFactory that parses the encoding hands back something this class
+     * cannot read components from.
+     */
+    private static void testTranslateTerminates(Provider p,
+            byte[] pubEncoded, byte[] privEncoded) throws Exception {
+        Security.insertProviderAt(new WrongTypeProvider(), 1);
+        try {
+            KeyFactory kf = KeyFactory.getInstance("DSA", p);
+            try {
+                kf.translateKey(encodingOnlyPublic(pubEncoded));
+                throw new Exception("Translating a public key through a DSA "
+                        + "KeyFactory that returns a non-DSAPublicKey should "
+                        + "not have succeeded");
+            } catch (InvalidKeyException expected) {
+                System.out.println("public: " + expected.getMessage());
+            }
+            try {
+                kf.translateKey(encodingOnlyPrivate(privEncoded));
+                throw new Exception("Translating a private key through a DSA "
+                        + "KeyFactory that returns a non-DSAPrivateKey should "
+                        + "not have succeeded");
+            } catch (InvalidKeyException expected) {
+                System.out.println("private: " + expected.getMessage());
+            }
+        } finally {
+            Security.removeProvider("WrongTypeDSA");
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         main(new TestKeyFactory(), args);
     }
@@ -225,6 +303,8 @@ public class TestKeyFactory extends PKCS11Test {
         // counterpart, which build the encoding through a KeyFactory.
         testPublic(kf, tokenPub);
         testPrivate(kf, tokenPriv);
+
+        testTranslateTerminates(p, pubEncoded, privEncoded);
 
         System.out.println("All tests passed");
     }
