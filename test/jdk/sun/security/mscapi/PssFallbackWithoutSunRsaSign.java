@@ -38,6 +38,7 @@ import java.security.SignatureSpi;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
+import java.util.Arrays;
 
 /*
  * @test
@@ -160,7 +161,14 @@ public class PssFallbackWithoutSunRsaSign {
         // Leave SunMSCAPI in place and take SunRsaSign out, so the only
         // provider the fallback may select is one it was never told about.
         Security.removeProvider("SunRsaSign");
-        Security.insertProviderAt(new AltPss(), 1);
+        // Appended, not inserted at slot 1. SunMSCAPI sits second-to-last in
+        // the default provider list, so appending puts the substitute behind
+        // it and Security.getProviders("Signature.RSASSA-PSS") returns
+        // SunMSCAPI first. Reaching the substitute therefore requires
+        // skipping this provider, which is the guard against recursing back
+        // into this class. At slot 1 the substitute would win before that
+        // guard was ever reached, and the guard would go untested.
+        Security.addProvider(new AltPss());
         try {
             Signature verifier =
                     Signature.getInstance("RSASSA-PSS", "SunMSCAPI");
@@ -175,6 +183,14 @@ public class PssFallbackWithoutSunRsaSign {
             if (DelegatingPss.instantiations == 0) {
                 throw new Exception("the fallback did not use the substitute "
                         + "provider, so this test proved nothing");
+            }
+            Provider[] order = Security.getProviders("Signature.RSASSA-PSS");
+            if (order == null || order.length < 2
+                    || !"SunMSCAPI".equals(order[0].getName())) {
+                throw new Exception("expected SunMSCAPI ahead of the "
+                        + "substitute, so that reaching the substitute "
+                        + "required skipping it; order was "
+                        + Arrays.toString(order));
             }
             System.out.println("Verified through AltPss, "
                     + DelegatingPss.instantiations + " instantiation(s)");
