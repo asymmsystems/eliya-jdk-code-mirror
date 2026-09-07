@@ -50,8 +50,13 @@ import sun.security.pkcs.PKCS8Key;
  *          own key classes must still work, whether or not its PKCS #8
  *          encoding carries the matching public key. When it does, the
  *          private key must not be handed to any other provider.
+ *          The search must also skip providers that could not implement the
+ *          JDK-internal derivation interface, since they can never answer
+ *          and would be shown the private key for nothing.
  * @modules java.base/sun.security.pkcs
- * @run main ForeignPrivateKey
+ * @run main/othervm ForeignPrivateKey
+ * @run main/othervm --add-exports java.base/sun.security.util=ALL-UNNAMED
+ *      ForeignPrivateKey exported
  */
 public class ForeignPrivateKey {
 
@@ -163,6 +168,18 @@ public class ForeignPrivateKey {
     }
 
     public static void main(String[] args) throws Exception {
+        // The watcher lives on the class path, in the unnamed module. Out of
+        // the box java.base does not export sun.security.util to it, so it
+        // could never return an InternalPrivateKey and the search must skip
+        // it. The second run passes --add-exports, which is a deployer
+        // saying they want their own provider to take part; the search must
+        // then include it.
+        boolean watcherIsCapable = args.length > 0
+                && args[0].equals("exported");
+        System.out.println(watcherIsCapable
+                ? "run 2: sun.security.util is exported to the class path"
+                : "run 1: sun.security.util is not exported to the class path");
+
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
         kpg.initialize(new ECGenParameterSpec("secp256r1"));
         KeyPair kp = kpg.generateKeyPair();
@@ -182,11 +199,13 @@ public class ForeignPrivateKey {
         Security.insertProviderAt(new Watcher(), 1);
         try {
             // No public key in the encoding, so it has to be derived, which
-            // means translating the key through another provider.
-            check("PKCS#8 v1", version1, kp, true);
+            // means translating the key through another provider. The
+            // watcher is reached only when it could actually have answered.
+            check("PKCS#8 v1", version1, kp, watcherIsCapable);
 
             // The public key is in the encoding, so nothing needs deriving
-            // and no other provider is involved.
+            // and no provider is asked at all, whatever the module graph
+            // says.
             check("PKCS#8 v2", version2, kp, false);
         } finally {
             Security.removeProvider("Watcher");
