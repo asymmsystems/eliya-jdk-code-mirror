@@ -34,6 +34,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
+import jtreg.SkippedException;
+
 /*
  * @test
  * @summary SunPKCS11 delegates to another provider in several places. Each
@@ -79,12 +81,12 @@ public class CapabilityLookupMatchesUse extends PKCS11Test {
      * chosen for the wrong service type surfaces as a RuntimeException out
      * of a method that declares none.
      */
-    private static void testPbeCipherParameters(Provider p11)
+    private static boolean testPbeCipherParameters(Provider p11)
             throws Exception {
         String alg = "PBEWithHmacSHA256AndAES_128";
         if (p11.getService("Cipher", alg) == null) {
             System.out.println("skip: token has no Cipher." + alg);
-            return;
+            return false;
         }
         SecretKey key = SecretKeyFactory.getInstance("PBE")
                 .generateSecret(new PBEKeySpec(PASSWORD));
@@ -96,6 +98,7 @@ public class CapabilityLookupMatchesUse extends PKCS11Test {
         }
         System.out.println("PBE cipher parameters from "
                 + params.getProvider().getName());
+        return true;
     }
 
     /*
@@ -104,11 +107,11 @@ public class CapabilityLookupMatchesUse extends PKCS11Test {
      * another provider. Two-party agreement never reaches it, which is why
      * the rest of the SunPKCS11 test tree does not cover this branch.
      */
-    private static void testMultiPartyKeyAgreement(Provider p11)
+    private static boolean testMultiPartyKeyAgreement(Provider p11)
             throws Exception {
         if (p11.getService("KeyAgreement", "DH") == null) {
             System.out.println("skip: token has no KeyAgreement.DH");
-            return;
+            return false;
         }
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("DH", p11);
         kpg.initialize(2048);
@@ -119,6 +122,7 @@ public class CapabilityLookupMatchesUse extends PKCS11Test {
         ka.init(a.getPrivate());
         ka.doPhase(b.getPublic(), false);
         System.out.println("multi-party key agreement initialised");
+        return true;
     }
 
     public static void main(String[] args) throws Exception {
@@ -127,13 +131,27 @@ public class CapabilityLookupMatchesUse extends PKCS11Test {
 
     @Override
     public void main(Provider p11) throws Exception {
+        int ran = 0;
         Security.insertProviderAt(new OnlyKeyFactoryDH(), 1);
         try {
-            testPbeCipherParameters(p11);
-            testMultiPartyKeyAgreement(p11);
+            if (testPbeCipherParameters(p11)) {
+                ran++;
+            }
+            if (testMultiPartyKeyAgreement(p11)) {
+                ran++;
+            }
         } finally {
             Security.removeProvider("OnlyKeyFactoryDH");
         }
-        System.out.println("All tests passed");
+        if (ran == 0) {
+            // Both sub-tests need a service this token does not offer.
+            // Passing here would report that the lookup was checked when
+            // nothing was checked, which is the failure this test exists
+            // to catch elsewhere.
+            throw new SkippedException("this token offers neither "
+                    + "Cipher.PBEWithHmacSHA256AndAES_128 nor "
+                    + "KeyAgreement.DH");
+        }
+        System.out.println("Passed, " + ran + " of 2 sub-tests run");
     }
 }
