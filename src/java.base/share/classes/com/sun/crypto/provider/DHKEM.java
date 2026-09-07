@@ -42,6 +42,7 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.spec.HKDFParameterSpec;
 
 import sun.security.jca.JCAUtil;
+import sun.security.pkcs.PKCS8Key;
 import sun.security.util.*;
 
 import jdk.internal.access.SharedSecrets;
@@ -266,10 +267,69 @@ public class DHKEM implements KEMSpi {
 
         private PublicKey getPublicKey(PrivateKey sk)
                 throws InvalidKeyException {
-            InternalPrivateKey ik = (sk instanceof InternalPrivateKey k)
-                    ? k
-                    : translateToInternalKey(sk);
-            return derivePublicKey(ik);
+            if (sk instanceof InternalPrivateKey ik) {
+                return derivePublicKey(ik);
+            }
+            // The answer may already be in the key's own encoding, in which
+            // case nothing has to derive it and no other provider is
+            // involved at all. Only worth trying for a key this class did
+            // not get as an InternalPrivateKey, which is why it sits after
+            // the check above.
+            PublicKey embedded = publicKeyFromEncoding(sk);
+            if (embedded != null) {
+                return embedded;
+            }
+            return derivePublicKey(translateToInternalKey(sk));
+        }
+
+        /*
+         * Returns the public key carried inside the private key's own
+         * encoding, or null if it does not carry one.
+         *
+         * A PKCS #8 encoding has two versions. Version 1 holds the private
+         * key alone. Version 2 may also hold the matching public key, in an
+         * optional field, in the same structure. When it does, deriving
+         * anything is unnecessary: the public key is already there, and
+         * reading it is DER decoding inside this module, so the private key
+         * is never handed to another provider.
+         *
+         * The public key that comes back is built through an unqualified
+         * KeyFactory lookup, which is what DeserializePublicKey in this
+         * class already does. That call receives a public key and nothing
+         * secret.
+         *
+         * The embedded value is used as given, not checked against the
+         * private key, since checking it would mean deriving the public key,
+         * which is the work being avoided. That is not a new trust
+         * boundary: the private key and the embedded public key arrive in
+         * one encoding from one source, so a caller that can choose one can
+         * choose the other. RFC 5958 requires the field, when present, to
+         * correspond to the private key.
+         *
+         * Any problem reading it returns null and leaves the caller to the
+         * provider search, which reports a proper diagnostic. This is an
+         * optimisation, not the authority on whether the key is usable.
+         */
+        private PublicKey publicKeyFromEncoding(PrivateKey sk) {
+            if (!"PKCS#8".equalsIgnoreCase(sk.getFormat())) {
+                return null;
+            }
+            byte[] encoded = sk.getEncoded();
+            if (encoded == null) {
+                return null;
+            }
+            try {
+                byte[] publicKeyEncoded =
+                        new PKCS8Key(encoded).getPubKeyEncoded();
+                if (publicKeyEncoded == null) {
+                    return null;
+                }
+                return KeyFactory.getInstance(keyAlgorithm).generatePublic(
+                        new X509EncodedKeySpec(publicKeyEncoded));
+            } catch (InvalidKeyException | NoSuchAlgorithmException
+                    | InvalidKeySpecException e) {
+                return null;
+            }
         }
 
         /*
