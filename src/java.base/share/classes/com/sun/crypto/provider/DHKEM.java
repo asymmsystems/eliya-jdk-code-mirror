@@ -296,36 +296,51 @@ public class DHKEM implements KEMSpi {
          */
         private InternalPrivateKey translateToInternalKey(PrivateKey sk)
                 throws InvalidKeyException {
+            // Ask only the providers that offer the algorithm. Walking the
+            // whole installed list instead fills the failure list with
+            // NoSuchAlgorithmException from providers that were never
+            // candidates, and on a stock JDK the first of those is SUN,
+            // which would then be reported as the cause ahead of the real
+            // failure.
+            Provider[] candidates =
+                    Security.getProviders("KeyFactory." + keyAlgorithm);
+            if (candidates == null) {
+                throw new InvalidKeyException("Error translating key",
+                        new NoSuchAlgorithmException(
+                                "No KeyFactory for " + keyAlgorithm));
+            }
             List<Exception> failures = new ArrayList<>();
-            for (Provider p : Security.getProviders()) {
+            for (Provider p : candidates) {
                 try {
                     Key k = KeyFactory.getInstance(keyAlgorithm, p)
                             .translateKey(sk);
                     if (k instanceof InternalPrivateKey ik) {
                         return ik;
                     }
-                } catch (NoSuchAlgorithmException | InvalidKeyException
+                } catch (InvalidKeyException | NoSuchAlgorithmException
                         | RuntimeException e) {
-                    // NoSuchAlgorithmException: this provider does not offer
-                    // the algorithm. InvalidKeyException: it does, but cannot
-                    // translate this key. RuntimeException: it is broken.
-                    // Walking every installed provider means one broken
-                    // provider must not end the search, which a single
-                    // hardcoded lookup never had to consider.
+                    // InvalidKeyException: this provider offers the
+                    // algorithm but cannot translate this key.
+                    // RuntimeException: it is broken. Walking a list means
+                    // one broken provider must not end the search, which a
+                    // single hardcoded lookup never had to consider.
+                    // NoSuchAlgorithmException should not occur, since every
+                    // provider here was selected for offering the service.
                     failures.add(e);
                 }
             }
             if (failures.isEmpty()) {
-                // Every provider that was asked translated the key, and none
-                // returned one that can derive its public half. That is an
-                // installation problem rather than a problem with the key.
+                // Every candidate translated the key and none returned one
+                // that can derive its public half. That is an installation
+                // problem rather than a problem with the key, and it is the
+                // case this method has always reported this way.
                 throw new ProviderException("Unknown key");
             }
-            // Report all of them. The first is the cause, so getCause() stays
-            // non-null as it was when one hardcoded provider failed, and the
-            // rest are suppressed. Keeping only one would name whichever
-            // provider happened to sort last, which is rarely the
-            // interesting one.
+            // Report all of them. The first is the cause, so getCause()
+            // stays non-null as it was when one hardcoded provider failed,
+            // and the rest are suppressed. Every entry here is a provider
+            // that offered the algorithm and failed on this key, so the
+            // first is a real answer rather than an artefact of ordering.
             InvalidKeyException failure = new InvalidKeyException(
                     "Error translating key", failures.get(0));
             for (int i = 1; i < failures.size(); i++) {
