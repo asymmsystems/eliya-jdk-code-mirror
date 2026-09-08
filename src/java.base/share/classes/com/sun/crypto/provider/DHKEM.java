@@ -286,8 +286,8 @@ public class DHKEM implements KEMSpi {
             // the order of the installed provider list, which the deployer
             // sets for reasons that have nothing to do with this call.
             Provider[] candidates =
-                    Security.getProviders("KeyFactory." + keyAlgorithm);
-            if (candidates == null) {
+                    ProviderSearch.candidatesFor("KeyFactory", keyAlgorithm);
+            if (candidates.length == 0) {
                 throw new InvalidKeyException("Error translating key",
                         new NoSuchAlgorithmException(
                                 "No KeyFactory for " + keyAlgorithm));
