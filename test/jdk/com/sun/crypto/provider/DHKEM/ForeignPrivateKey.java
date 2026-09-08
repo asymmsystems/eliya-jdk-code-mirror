@@ -48,8 +48,7 @@ import sun.security.pkcs.PKCS8Key;
  * @summary DHKEM has to derive a public key from a private key, which JCA
  *          exposes no API for. A private key that is not one of the JDK's
  *          own key classes must still work, whether or not its PKCS #8
- *          encoding carries the matching public key. When it does, the
- *          private key must not be handed to any other provider.
+ *          encoding carries the matching public key.
  *          The search must also skip providers that could not implement the
  *          JDK-internal derivation interface, since they can never answer
  *          and would be shown the private key for nothing.
@@ -198,15 +197,17 @@ public class ForeignPrivateKey {
 
         Security.insertProviderAt(new Watcher(), 1);
         try {
-            // No public key in the encoding, so it has to be derived, which
-            // means translating the key through another provider. The
-            // watcher is reached only when it could actually have answered.
+            // Both encodings take the same route: the public key is
+            // derived, which means translating the key through another
+            // provider. Version 2 carries the public key in the encoding,
+            // and this class deliberately does not read it; see the JEP
+            // section "Why the encoding shortcut was withdrawn". Both are
+            // kept as inputs so that a version 2 encoding is covered.
+            //
+            // The watcher is reached only when it could actually have
+            // answered, which is what the module filter decides.
             check("PKCS#8 v1", version1, kp, watcherIsCapable);
-
-            // The public key is in the encoding, so nothing needs deriving
-            // and no provider is asked at all, whatever the module graph
-            // says.
-            check("PKCS#8 v2", version2, kp, false);
+            check("PKCS#8 v2", version2, kp, watcherIsCapable);
         } finally {
             Security.removeProvider("Watcher");
         }

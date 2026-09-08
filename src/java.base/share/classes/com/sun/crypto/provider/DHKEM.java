@@ -42,7 +42,6 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.spec.HKDFParameterSpec;
 
 import sun.security.jca.JCAUtil;
-import sun.security.pkcs.PKCS8Key;
 import sun.security.util.*;
 
 import jdk.internal.access.SharedSecrets;
@@ -267,111 +266,12 @@ public class DHKEM implements KEMSpi {
 
         private PublicKey getPublicKey(PrivateKey sk)
                 throws InvalidKeyException {
-            if (sk instanceof InternalPrivateKey ik) {
-                return derivePublicKey(ik);
-            }
-            // The answer may already be in the key's own encoding, in which
-            // case nothing has to derive it and no other provider is
-            // involved at all. Only worth trying for a key this class did
-            // not get as an InternalPrivateKey, which is why it sits after
-            // the check above.
-            PublicKey embedded = publicKeyFromEncoding(sk);
-            if (embedded != null) {
-                return embedded;
-            }
-            return derivePublicKey(translateToInternalKey(sk));
+            InternalPrivateKey ik = (sk instanceof InternalPrivateKey k)
+                    ? k
+                    : translateToInternalKey(sk);
+            return derivePublicKey(ik);
         }
 
-        /*
-         * Returns the public key carried inside the private key's own
-         * encoding, or null if it does not carry one.
-         *
-         * A PKCS #8 encoding has two versions. Version 1 holds the private
-         * key alone. Version 2 may also hold the matching public key, in an
-         * optional field, in the same structure. When it does, deriving
-         * anything is unnecessary: the public key is already there, and
-         * reading it is DER decoding inside this module, so the private key
-         * is never handed to another provider.
-         *
-         * The public key that comes back is built through an unqualified
-         * KeyFactory lookup, which is what DeserializePublicKey in this
-         * class already does. That call receives a public key and nothing
-         * secret.
-         *
-         * The embedded value is used as given, not checked against the
-         * private key, since checking it would mean deriving the public key,
-         * which is the work being avoided. RFC 5958 requires the field, when
-         * present, to correspond to the private key.
-         *
-         * This does change behaviour: an encoding whose embedded public key
-         * does not correspond used to produce the derived, correct key and
-         * now produces the stated, wrong one, so the shared secret differs
-         * and the peer cannot decrypt. It fails closed rather than silently
-         * agreeing on something an attacker chose. DH() is computed from the
-         * real private key and the sender's ephemeral public key, so a wrong
-         * value here reaches only kem_context, a KDF input, and never enters
-         * point arithmetic. AuthEncap and AuthDecap, the modes where a
-         * public key carries authentication weight, are not implemented in
-         * this class.
-         *
-         * It is also not a new trust boundary. The private key and the
-         * embedded public key are one DER structure from one source, so
-         * anyone able to choose the second can choose the first. And the
-         * alternative for a key in this position is not safe derivation, it
-         * is handing the caller's private key to another provider, which is
-         * the larger exposure of the two.
-         *
-         * Any problem reading it returns null and leaves the caller to the
-         * provider search, which reports a proper diagnostic. This is an
-         * optimisation, not the authority on whether the key is usable.
-         */
-        private PublicKey publicKeyFromEncoding(PrivateKey sk) {
-            if (!"PKCS#8".equalsIgnoreCase(sk.getFormat())) {
-                return null;
-            }
-            byte[] encoded = sk.getEncoded();
-            if (encoded == null) {
-                return null;
-            }
-            try {
-                byte[] publicKeyEncoded =
-                        new PKCS8Key(encoded).getPubKeyEncoded();
-                if (publicKeyEncoded == null) {
-                    return null;
-                }
-                return KeyFactory.getInstance(keyAlgorithm).generatePublic(
-                        new X509EncodedKeySpec(publicKeyEncoded));
-            } catch (InvalidKeyException | NoSuchAlgorithmException
-                    | InvalidKeySpecException e) {
-                return null;
-            }
-        }
-
-        /*
-         * Returns an equivalent key that can derive its own public half.
-         *
-         * JCA has no public API for deriving a public key from a private
-         * one. The JDK does it through sun.security.util.InternalPrivateKey,
-         * which only the JDK's own key classes implement, so the requirement
-         * at this call is not "give me SunEC" but "give me a KeyFactory whose
-         * keys can derive their public half". Ask each registered provider in
-         * turn rather than naming one. On a stock JDK the first provider that
-         * answers is SunEC, which is what the previous hardcoded lookup asked
-         * for by name.
-         *
-         * This does not make the site substitutable by a third-party
-         * provider, and it is not meant to. InternalPrivateKey lives in
-         * sun.security.util, which is exported only to a fixed list of jdk.*
-         * modules, so a provider on the class path cannot implement it.
-         * Lifting that limit needs a public API for the operation. One
-         * placement, a method on java.security.PrivateKey, was proposed and
-         * closed Won't Fix as JDK-8372538 on 2026-05-02; the objection
-         * recorded there was to that placement rather than to the operation
-         * itself. Either way it is upstream-owned and out of scope here.
-         * What this does buy is that
-         * the code states its actual requirement rather than one provider
-         * that happens to meet it, and reports every reason it failed.
-         */
         private InternalPrivateKey translateToInternalKey(PrivateKey sk)
                 throws InvalidKeyException {
             // Two filters, and each removes providers for a different
