@@ -769,8 +769,8 @@ abstract class P11Key implements Key, Length {
                 try {
                     // XXX make constructor in SunRsaSign provider public
                     // and call it directly
-                    KeyFactory factory = KeyFactory.getInstance
-                        ("RSA", P11Util.getFirstFromKeyFactory("RSA"));
+                    KeyFactory factory =
+                        P11Util.getSoftwareKeyFactory("RSA");
                     Key newKey = factory.translateKey(this);
                     encoded = newKey.getEncoded();
                 } catch (GeneralSecurityException e) {
@@ -882,9 +882,18 @@ abstract class P11Key implements Key, Length {
             token.ensureValid();
             if (encoded == null) {
                 fetchValues();
-                Key key = new sun.security.provider.DSAPublicKey
-                        (y, params.getP(), params.getQ(), params.getG());
-                encoded = key.getEncoded();
+                try {
+                    // Build the X.509 encoding with a non-PKCS #11 DSA
+                    // KeyFactory. getSoftwareKeyFactory skips every
+                    // SunPKCS11 instance, so this cannot recurse.
+                    KeyFactory factory =
+                        P11Util.getSoftwareKeyFactory("DSA");
+                    Key key = factory.generatePublic(new DSAPublicKeySpec
+                        (y, params.getP(), params.getQ(), params.getG()));
+                    encoded = key.getEncoded();
+                } catch (GeneralSecurityException e) {
+                    throw new ProviderException(e);
+                }
             }
             return encoded;
         }
@@ -980,9 +989,18 @@ abstract class P11Key implements Key, Length {
             token.ensureValid();
             if (encoded == null) {
                 fetchValues();
-                Key key = new sun.security.provider.DSAPrivateKey
-                        (x, params.getP(), params.getQ(), params.getG());
-                encoded = key.getEncoded();
+                try {
+                    // Build the PKCS#8 encoding with a non-PKCS #11 DSA
+                    // KeyFactory. getSoftwareKeyFactory skips every
+                    // SunPKCS11 instance, so this cannot recurse.
+                    KeyFactory factory =
+                        P11Util.getSoftwareKeyFactory("DSA");
+                    Key key = factory.generatePrivate(new DSAPrivateKeySpec
+                        (x, params.getP(), params.getQ(), params.getG()));
+                    encoded = key.getEncoded();
+                } catch (GeneralSecurityException e) {
+                    throw new ProviderException(e);
+                }
             }
             return encoded;
         }
@@ -1076,8 +1094,7 @@ abstract class P11Key implements Key, Length {
                 try {
                     DHPrivateKeySpec spec = new DHPrivateKeySpec
                         (x, params.getP(), params.getG());
-                    KeyFactory kf = KeyFactory.getInstance
-                        ("DH", P11Util.getFirstFromKeyFactory("DH"));
+                    KeyFactory kf = P11Util.getSoftwareKeyFactory("DH");
                     Key key = kf.generatePrivate(spec);
                     encoded = key.getEncoded();
                 } catch (GeneralSecurityException e) {
@@ -1156,8 +1173,7 @@ abstract class P11Key implements Key, Length {
                 try {
                     DHPublicKeySpec spec = new DHPublicKeySpec
                         (y, params.getP(), params.getG());
-                    KeyFactory kf = KeyFactory.getInstance
-                        ("DH", P11Util.getFirstFromKeyFactory("DH"));
+                    KeyFactory kf = P11Util.getSoftwareKeyFactory("DH");
                     Key key = kf.generatePublic(spec);
                     encoded = key.getEncoded();
                 } catch (GeneralSecurityException e) {

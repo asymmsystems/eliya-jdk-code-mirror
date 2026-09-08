@@ -320,8 +320,7 @@ final class P11ECKeyFactory extends P11KeyFactory {
     }
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
-        return KeyFactory.getInstance("EC",
-            P11Util.getFirstFromKeyFactory("EC"));
+        return P11Util.getSoftwareKeyFactory("EC");
     }
 
 }

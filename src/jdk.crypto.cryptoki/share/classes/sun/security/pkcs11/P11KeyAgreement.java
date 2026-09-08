@@ -123,8 +123,8 @@ final class P11KeyAgreement extends KeyAgreementSpi {
         if ((multiPartyAgreement != null) || (!lastPhase)) {
             if (multiPartyAgreement == null) {
                 try {
-                    multiPartyAgreement = KeyAgreement.getInstance
-                        ("DH", P11Util.getFirstFromKeyFactory("DH"));
+                    multiPartyAgreement =
+                        P11Util.getSoftwareKeyAgreement("DH");
                     multiPartyAgreement.init(privateKey);
                 } catch (NoSuchAlgorithmException e) {
                     throw new InvalidKeyException

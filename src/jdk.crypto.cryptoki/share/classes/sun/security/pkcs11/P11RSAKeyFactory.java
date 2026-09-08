@@ -324,8 +324,7 @@ final class P11RSAKeyFactory extends P11KeyFactory {
     }
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
-        return KeyFactory.getInstance("RSA",
-            P11Util.getFirstFromKeyFactory("RSA"));
+        return P11Util.getSoftwareKeyFactory("RSA");
     }
 
 }
