@@ -33,9 +33,7 @@ import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.XECKey;
 import java.security.interfaces.XECPublicKey;
 import java.security.spec.*;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
@@ -294,7 +292,12 @@ public class DHKEM implements KEMSpi {
                         new NoSuchAlgorithmException(
                                 "No KeyFactory for " + keyAlgorithm));
             }
-            List<Exception> failures = new ArrayList<>();
+            // Sized by the candidate count rather than grown, and an array
+            // rather than a collection, because this class and this package
+            // work in arrays: of the 97 classes in com.sun.crypto.provider,
+            // two use a collection at all.
+            Exception[] failures = new Exception[candidates.length];
+            int failureCount = 0;
             for (Provider p : candidates) {
                 try {
                     Key k = KeyFactory.getInstance(keyAlgorithm, p)
@@ -309,10 +312,10 @@ public class DHKEM implements KEMSpi {
                     // RuntimeException: it is broken. Walking a list means
                     // one broken provider must not end the search, which a
                     // single hardcoded lookup never had to consider.
-                    failures.add(e);
+                    failures[failureCount++] = e;
                 }
             }
-            if (failures.isEmpty()) {
+            if (failureCount == 0) {
                 // Every candidate translated the key and none returned one
                 // that can derive its public half. That is an installation
                 // problem rather than a problem with the key, and it is the
@@ -323,9 +326,9 @@ public class DHKEM implements KEMSpi {
             // stays non-null as it was when one hardcoded provider failed,
             // and the rest are suppressed.
             InvalidKeyException failure = new InvalidKeyException(
-                    "Error translating key", failures.get(0));
-            for (int i = 1; i < failures.size(); i++) {
-                failure.addSuppressed(failures.get(i));
+                    "Error translating key", failures[0]);
+            for (int i = 1; i < failureCount; i++) {
+                failure.addSuppressed(failures[i]);
             }
             throw failure;
         }
