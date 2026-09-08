@@ -33,6 +33,7 @@ import java.nio.charset.Charset;
 import java.security.*;
 
 import sun.security.jca.Providers;
+import sun.security.util.ProviderSearch;
 import sun.security.pkcs11.wrapper.PKCS11Exception;
 import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
 
@@ -92,16 +93,11 @@ public final class P11Util {
      */
     private static Provider firstProviderFor(String serviceType, String algorithm)
             throws ProviderException {
-        for (Provider p : Providers.getProviderList().providers()) {
-            if (p instanceof SunPKCS11) {
-                continue;
-            }
-            if (p.getService(serviceType, algorithm) != null) {
-                return p;
-            }
-        }
-        throw new ProviderException(
-                "No non-PKCS#11 JCA provider offers " + serviceType + "." + algorithm);
+        // The ProviderList form, not the Security.getProviders one: this must
+        // respect a thread-local provider list, and that path is far cheaper.
+        // See sun.security.util.ProviderSearch for the difference.
+        return ProviderSearch.firstOffering(Providers.getProviderList(),
+                serviceType, algorithm, SunPKCS11.class);
     }
 
     /**
