@@ -33,6 +33,8 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.math.BigInteger;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 import sun.security.rsa.RSAKeyFactory;
@@ -537,12 +539,7 @@ abstract class CSignature extends SignatureSpi {
                 publicKey = (CPublicKey) key;
             } else {
                 if (fallbackSignature == null) {
-                    try {
-                        fallbackSignature = Signature.getInstance(
-                                "RSASSA-PSS", "SunRsaSign");
-                    } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-                        throw new InvalidKeyException("Invalid key", e);
-                    }
+                    fallbackSignature = firstNonSelfRsaPssSignature();
                 }
                 fallbackSignature.initVerify(key);
                 if (pssParams != null) {
@@ -555,6 +552,76 @@ abstract class CSignature extends SignatureSpi {
                 publicKey = null;
             }
             resetDigest();
+        }
+
+        /**
+         * Returns an RSASSA-PSS {@code Signature} from the first installed
+         * provider that offers one and is not this provider.
+         *
+         * <p>A raw public key cannot be imported into CNG, so PSS
+         * verification has to be performed by a provider other than this
+         * one. The code this replaces asked for {@code "SunRsaSign"} by
+         * name. SunMSCAPI is Windows-only and SunRsaSign precedes it in the
+         * default provider list, so on a stock configuration both select the
+         * same implementation; where SunRsaSign has been removed or
+         * reordered, the old code failed outright and this one continues to
+         * the next candidate.
+         *
+         * <p>There is no single-shot JCA call for "any provider other than
+         * this one". {@link Signature#getInstance(String)} is single-shot,
+         * but SunMSCAPI registers RSASSA-PSS itself pointing at this very
+         * class, so an unqualified lookup can select us and recurse.
+         * {@link Security#getProviders(String)} applies the same service
+         * filter {@code getInstance} applies and returns the candidates in
+         * preference order, which is the closest the API offers.
+         *
+         * <p>Naming SunMSCAPI here is cohesion rather than coupling:
+         * {@code CSignature} and {@code SunMSCAPI} are the same module's own
+         * classes in the same package. This is the shape adopted for the
+         * same problem in {@code sun.security.pkcs11.P11Util}, which skips
+         * instances of its own provider class rather than naming a
+         * competitor.
+         *
+         * @throws InvalidKeyException if no other provider offers RSASSA-PSS
+         */
+        private static Signature firstNonSelfRsaPssSignature()
+                throws InvalidKeyException {
+            List<NoSuchAlgorithmException> failures = new ArrayList<>();
+            Provider[] candidates =
+                    Security.getProviders("Signature.RSASSA-PSS");
+            if (candidates != null) {
+                for (Provider p : candidates) {
+                    if (p instanceof SunMSCAPI) {
+                        continue;
+                    }
+                    try {
+                        return Signature.getInstance("RSASSA-PSS", p);
+                    } catch (NoSuchAlgorithmException e) {
+                        failures.add(e);
+                    }
+                }
+            }
+            if (failures.isEmpty()) {
+                // Nothing was tried, because no provider other than this one
+                // offers the algorithm. This is the failure a trimmed or
+                // reordered provider list produces, so it is the one an
+                // operator actually meets, and leaving it without a cause
+                // gives no way to tell a bad key from a short provider list.
+                // The message is fixed; the cause carries the detail.
+                throw new InvalidKeyException("Invalid key",
+                        new NoSuchAlgorithmException("no installed provider "
+                                + "other than SunMSCAPI offers "
+                                + "Signature.RSASSA-PSS"));
+            }
+            // Report all of them. The first is the cause, so getCause() stays
+            // non-null as it was when one hardcoded provider failed, and the
+            // rest are suppressed.
+            InvalidKeyException failure =
+                    new InvalidKeyException("Invalid key", failures.get(0));
+            for (int i = 1; i < failures.size(); i++) {
+                failure.addSuppressed(failures.get(i));
+            }
+            throw failure;
         }
 
         @Override

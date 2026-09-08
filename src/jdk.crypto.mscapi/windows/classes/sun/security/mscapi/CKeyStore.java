@@ -809,7 +809,10 @@ abstract class CKeyStore extends KeyStoreSpi {
 
             // Obtain certificate factory
             if (certificateFactory == null) {
-                certificateFactory = CertificateFactory.getInstance("X.509", "SUN");
+                // Capability lookup: JCA returns the first registered
+                // provider offering CertificateFactory.X.509. On a stock
+                // JDK that is SUN, matching the previous hardcoded lookup.
+                certificateFactory = CertificateFactory.getInstance("X.509");
             }
 
             // Generate certificate

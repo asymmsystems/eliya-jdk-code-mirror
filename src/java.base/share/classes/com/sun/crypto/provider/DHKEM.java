@@ -264,23 +264,81 @@ public class DHKEM implements KEMSpi {
 
         private PublicKey getPublicKey(PrivateKey sk)
                 throws InvalidKeyException {
-            if (!(sk instanceof InternalPrivateKey)) {
+            InternalPrivateKey ik = (sk instanceof InternalPrivateKey k)
+                    ? k
+                    : translateToInternalKey(sk);
+            return derivePublicKey(ik);
+        }
+
+        private InternalPrivateKey translateToInternalKey(PrivateKey sk)
+                throws InvalidKeyException {
+            // Ask only the providers that offer the algorithm. Walking the
+            // whole installed list instead fills the failure list with
+            // NoSuchAlgorithmException from providers that were never
+            // candidates, and on a stock JDK the first of those is SUN,
+            // which would then be reported as the cause ahead of the real
+            // failure.
+            //
+            // Try each in turn rather than taking the first. Only the JDK's
+            // own key classes implement InternalPrivateKey, so a provider
+            // can offer the algorithm and still return a key this class
+            // cannot use. Stopping at the first would make success depend on
+            // the order of the installed provider list, which the deployer
+            // sets for reasons that have nothing to do with this call.
+            Provider[] candidates =
+                    ProviderSearch.candidatesFor("KeyFactory", keyAlgorithm);
+            if (candidates.length == 0) {
+                throw new InvalidKeyException("Error translating key",
+                        new NoSuchAlgorithmException(
+                                "No KeyFactory for " + keyAlgorithm));
+            }
+            // Sized by the candidate count rather than grown, and an array
+            // rather than a collection, because this class and this package
+            // work in arrays: of the 97 classes in com.sun.crypto.provider,
+            // two use a collection at all.
+            Exception[] failures = new Exception[candidates.length];
+            int failureCount = 0;
+            for (Provider p : candidates) {
                 try {
-                    KeyFactory kf = KeyFactory.getInstance(keyAlgorithm, "SunEC");
-                    sk = (PrivateKey) kf.translateKey(sk);
-                } catch (Exception e) {
-                    throw new InvalidKeyException("Error translating key", e);
+                    Key k = KeyFactory.getInstance(keyAlgorithm, p)
+                            .translateKey(sk);
+                    if (k instanceof InternalPrivateKey ik) {
+                        return ik;
+                    }
+                } catch (InvalidKeyException | NoSuchAlgorithmException
+                        | RuntimeException e) {
+                    // InvalidKeyException: this provider offers the
+                    // algorithm but cannot translate this key.
+                    // RuntimeException: it is broken. Walking a list means
+                    // one broken provider must not end the search, which a
+                    // single hardcoded lookup never had to consider.
+                    failures[failureCount++] = e;
                 }
             }
-            if (sk instanceof InternalPrivateKey ik) {
-                try {
-                    return ik.calculatePublicKey();
-                } catch (UnsupportedOperationException e) {
-                    throw new InvalidKeyException("Error retrieving key", e);
-                }
-            } else {
-                // Should not happen, unless SunEC goes wrong
+            if (failureCount == 0) {
+                // Every candidate translated the key and none returned one
+                // that can derive its public half. That is an installation
+                // problem rather than a problem with the key, and it is the
+                // case this method has always reported this way.
                 throw new ProviderException("Unknown key");
+            }
+            // Report all of them. The first is the cause, so getCause()
+            // stays non-null as it was when one hardcoded provider failed,
+            // and the rest are suppressed.
+            InvalidKeyException failure = new InvalidKeyException(
+                    "Error translating key", failures[0]);
+            for (int i = 1; i < failureCount; i++) {
+                failure.addSuppressed(failures[i]);
+            }
+            throw failure;
+        }
+
+        private static PublicKey derivePublicKey(InternalPrivateKey ik)
+                throws InvalidKeyException {
+            try {
+                return ik.calculatePublicKey();
+            } catch (UnsupportedOperationException e) {
+                throw new InvalidKeyException("Error retrieving key", e);
             }
         }
 
