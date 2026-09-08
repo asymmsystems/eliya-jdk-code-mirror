@@ -274,48 +274,28 @@ public class DHKEM implements KEMSpi {
 
         private InternalPrivateKey translateToInternalKey(PrivateKey sk)
                 throws InvalidKeyException {
-            // Two filters, and each removes providers for a different
-            // reason.
-            //
-            // Offering the algorithm is the obvious one. Asking providers
-            // that do not offer it collects a NoSuchAlgorithmException from
-            // each, and on a stock JDK the first of those comes from SUN,
-            // which would then be reported as the cause ahead of any real
+            // Ask only the providers that offer the algorithm. Walking the
+            // whole installed list instead fills the failure list with
+            // NoSuchAlgorithmException from providers that were never
+            // candidates, and on a stock JDK the first of those is SUN,
+            // which would then be reported as the cause ahead of the real
             // failure.
             //
-            // Being able to implement InternalPrivateKey is the one that
-            // matters. The interface lives in sun.security.util, which
-            // java.base exports to a fixed list of modules, so a provider
-            // outside that list cannot return one however it is asked. Such
-            // a provider can never answer, and every provider asked is shown
-            // the caller's private key, so asking it would be exposure
-            // bought for nothing.
-            //
-            // Reading the module graph rather than naming modules keeps this
-            // true if the export list changes, and lets a deployer who has
-            // opened the package with --add-exports have their own provider
-            // take part.
-            Module javaBase = InternalPrivateKey.class.getModule();
-            List<Provider> capable = new ArrayList<>();
-            Provider[] offering =
+            // Try each in turn rather than taking the first. Only the JDK's
+            // own key classes implement InternalPrivateKey, so a provider
+            // can offer the algorithm and still return a key this class
+            // cannot use. Stopping at the first would make success depend on
+            // the order of the installed provider list, which the deployer
+            // sets for reasons that have nothing to do with this call.
+            Provider[] candidates =
                     Security.getProviders("KeyFactory." + keyAlgorithm);
-            if (offering != null) {
-                for (Provider p : offering) {
-                    if (javaBase.isExported("sun.security.util",
-                            p.getClass().getModule())) {
-                        capable.add(p);
-                    }
-                }
-            }
-            if (capable.isEmpty()) {
+            if (candidates == null) {
                 throw new InvalidKeyException("Error translating key",
-                        new NoSuchAlgorithmException("no provider able to "
-                                + "derive a public key offers KeyFactory."
-                                + keyAlgorithm));
+                        new NoSuchAlgorithmException(
+                                "No KeyFactory for " + keyAlgorithm));
             }
-
             List<Exception> failures = new ArrayList<>();
-            for (Provider p : capable) {
+            for (Provider p : candidates) {
                 try {
                     Key k = KeyFactory.getInstance(keyAlgorithm, p)
                             .translateKey(sk);
@@ -341,9 +321,7 @@ public class DHKEM implements KEMSpi {
             }
             // Report all of them. The first is the cause, so getCause()
             // stays non-null as it was when one hardcoded provider failed,
-            // and the rest are suppressed. Every entry here is a provider
-            // that could have answered and did not, so the first is a real
-            // answer rather than an artefact of ordering.
+            // and the rest are suppressed.
             InvalidKeyException failure = new InvalidKeyException(
                     "Error translating key", failures.get(0));
             for (int i = 1; i < failures.size(); i++) {
