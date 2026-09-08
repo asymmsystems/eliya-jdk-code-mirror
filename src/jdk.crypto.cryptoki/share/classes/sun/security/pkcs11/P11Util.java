@@ -93,10 +93,10 @@ public final class P11Util {
      */
     private static Provider firstProviderFor(String serviceType, String algorithm)
             throws ProviderException {
-        // The ProviderList form, not the Security.getProviders one: this must
-        // respect a thread-local provider list, and that path is far cheaper.
-        // See sun.security.util.ProviderSearch for the difference.
-        return ProviderSearch.firstOffering(Providers.getProviderList(),
+        // getProviderList, not the list behind Security.getProviders: this
+        // runs per key operation and must not force every configured
+        // provider to load. See sun.security.util.ProviderSearch.
+        return ProviderSearch.firstOfferingExcept(Providers.getProviderList(),
                 serviceType, algorithm, SunPKCS11.class);
     }
 

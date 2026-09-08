@@ -28,29 +28,25 @@ package sun.security.util;
 
 import java.security.Provider;
 import java.security.ProviderException;
+import java.security.Security;
 
 import sun.security.jca.ProviderList;
 
 /**
- * Finding a provider by what it offers rather than by its name.
+ * Static helpers for locating security providers by the service they offer.
  *
- * <p>JDK code that needs another provider's implementation used to name one,
- * which breaks on any deployment that removes or reorders that provider.
- * Asking for the capability instead means writing a search, and the searches
- * turn out to differ in one respect that matters: <b>which list of providers
- * they walk</b>.
+ * <p>Two provider lists exist and they are not interchangeable, so this class
+ * does not choose one. {@link java.security.Security#getProviders(String)}
+ * uses {@link sun.security.jca.Providers#getFullProviderList()}, which loads
+ * every configured provider and drops the ones that fail, under a lock.
+ * {@link sun.security.jca.Providers#getProviderList()} returns the current
+ * list without loading or validating anything, and is correspondingly
+ * cheaper. A caller on a hot path wants the second; a caller that needs the
+ * list pruned of providers that cannot load wants the first. Both honour the
+ * thread-local list that JAR verification installs.
  *
- * <p>{@link Security#getProviders(String)} walks
- * {@link sun.security.jca.Providers#getFullProviderList()}. Code that must
- * respect a thread-local provider list, as JAR verification installs, has to
- * walk {@link sun.security.jca.Providers#getProviderList()} instead, and that
- * path is also far cheaper: about 76 ns per call against roughly 13,863 ns
- * for the filtered form.
- *
- * <p>The two are therefore not interchangeable, and this class does not try
- * to hide the difference. The caller supplies the list it needs, and gets
- * the same search over whichever it chose. A second entry point taking the
- * filtered form arrives with its first caller.
+ * <p>The caller therefore supplies the list, and gets the same search over
+ * whichever it chose.
  */
 public final class ProviderSearch {
 
@@ -58,26 +54,24 @@ public final class ProviderSearch {
     }
 
     /**
-     * Returns the first provider in {@code list} that offers
-     * {@code serviceType.algorithm} and is not an instance of
-     * {@code excluding}.
+     * Returns the providers in {@code list} offering
+     * {@code serviceType.algorithm}, skipping instances of {@code except}.
      *
-     * <p>The exclusion is by class rather than by name, so a caller skipping
-     * its own provider skips every instance of it, including sibling
-     * instances configured differently. Naming its own provider class is
-     * cohesion; naming another provider is the coupling this class exists to
-     * remove.
+     * <p>Matching by class rather than by name means every instance of a
+     * provider class is skipped, including sibling instances configured
+     * differently, which a name comparison would miss.
      *
-     * @param list the provider list to walk, chosen by the caller
+     * @param list the provider list to walk
      * @param serviceType JCA service type, for example "KeyFactory"
      * @param algorithm algorithm or type name, aliases accepted
-     * @param excluding provider class to skip, or null to skip none
+     * @param except provider class to skip, or null to skip none
      * @throws ProviderException if no provider in the list qualifies
      */
-    public static Provider firstOffering(ProviderList list, String serviceType,
-            String algorithm, Class<? extends Provider> excluding) {
+    public static Provider firstOfferingExcept(ProviderList list,
+            String serviceType, String algorithm,
+            Class<? extends Provider> except) {
         for (Provider p : list.providers()) {
-            if (excluding != null && excluding.isInstance(p)) {
+            if (except != null && except.isInstance(p)) {
                 continue;
             }
             if (p.getService(serviceType, algorithm) != null) {
@@ -86,7 +80,25 @@ public final class ProviderSearch {
         }
         throw new ProviderException("No JCA provider offers " + serviceType
                 + "." + algorithm
-                + (excluding == null ? ""
-                        : " outside " + excluding.getSimpleName()));
+                + (except == null ? "" : " outside " + except.getSimpleName()));
+    }
+
+    /**
+     * Returns the providers offering {@code serviceType.algorithm} from the
+     * full provider list, in preference order.
+     *
+     * <p>{@link java.security.Security#getProviders(String)} returns
+     * {@code null} rather than an empty array when nothing matches. This
+     * returns an empty array, so callers need no null check.
+     *
+     * @param serviceType JCA service type, for example "SaslClientFactory"
+     * @param algorithm algorithm or type name, aliases accepted
+     * @return the matching providers, never null, possibly empty
+     */
+    public static Provider[] candidatesFor(String serviceType,
+            String algorithm) {
+        Provider[] candidates =
+                Security.getProviders(serviceType + "." + algorithm);
+        return candidates == null ? new Provider[0] : candidates;
     }
 }
