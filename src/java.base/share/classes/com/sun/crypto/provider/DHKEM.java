@@ -300,11 +300,26 @@ public class DHKEM implements KEMSpi {
          *
          * The embedded value is used as given, not checked against the
          * private key, since checking it would mean deriving the public key,
-         * which is the work being avoided. That is not a new trust
-         * boundary: the private key and the embedded public key arrive in
-         * one encoding from one source, so a caller that can choose one can
-         * choose the other. RFC 5958 requires the field, when present, to
-         * correspond to the private key.
+         * which is the work being avoided. RFC 5958 requires the field, when
+         * present, to correspond to the private key.
+         *
+         * This does change behaviour: an encoding whose embedded public key
+         * does not correspond used to produce the derived, correct key and
+         * now produces the stated, wrong one, so the shared secret differs
+         * and the peer cannot decrypt. It fails closed rather than silently
+         * agreeing on something an attacker chose. DH() is computed from the
+         * real private key and the sender's ephemeral public key, so a wrong
+         * value here reaches only kem_context, a KDF input, and never enters
+         * point arithmetic. AuthEncap and AuthDecap, the modes where a
+         * public key carries authentication weight, are not implemented in
+         * this class.
+         *
+         * It is also not a new trust boundary. The private key and the
+         * embedded public key are one DER structure from one source, so
+         * anyone able to choose the second can choose the first. And the
+         * alternative for a key in this position is not safe derivation, it
+         * is handing the caller's private key to another provider, which is
+         * the larger exposure of the two.
          *
          * Any problem reading it returns null and leaves the caller to the
          * provider search, which reports a proper diagnostic. This is an
