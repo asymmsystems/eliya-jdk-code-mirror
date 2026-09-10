@@ -32,7 +32,6 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.security.*;
 
-import sun.security.jca.Providers;
 import sun.security.util.ProviderSearch;
 import sun.security.pkcs11.wrapper.PKCS11Exception;
 import static sun.security.pkcs11.wrapper.PKCS11Exception.RV.*;
@@ -93,11 +92,8 @@ public final class P11Util {
      */
     private static Provider firstProviderFor(String serviceType, String algorithm)
             throws ProviderException {
-        // getProviderList, not the list behind Security.getProviders: this
-        // runs per key operation and must not force every configured
-        // provider to load. See sun.security.util.ProviderSearch.
-        return ProviderSearch.firstOfferingExcept(Providers.getProviderList(),
-                serviceType, algorithm, SunPKCS11.class);
+        return ProviderSearch.firstOfferingExcept(serviceType, algorithm,
+                SunPKCS11.class);
     }
 
     /**

@@ -31,6 +31,7 @@ import java.security.ProviderException;
 import java.security.Security;
 
 import sun.security.jca.ProviderList;
+import sun.security.jca.Providers;
 
 /**
  * Static helpers for locating security providers by the service they offer.
@@ -81,6 +82,28 @@ public final class ProviderSearch {
         throw new ProviderException("No JCA provider offers " + serviceType
                 + "." + algorithm
                 + (except == null ? "" : " outside " + except.getSimpleName()));
+    }
+
+    /**
+     * Returns the first provider offering {@code serviceType.algorithm},
+     * skipping instances of {@code except}, from
+     * {@link sun.security.jca.Providers#getProviderList()}.
+     *
+     * <p>That is the list that does not force every configured provider to
+     * load, so this is the form for a caller on a hot path. A caller needing
+     * the list pruned of providers that cannot load should pass
+     * {@link sun.security.jca.Providers#getFullProviderList()} to the
+     * overload that takes one.
+     *
+     * @param serviceType JCA service type, for example "KeyFactory"
+     * @param algorithm algorithm or type name, aliases accepted
+     * @param except provider class to skip, or null to skip none
+     * @throws ProviderException if no provider qualifies
+     */
+    public static Provider firstOfferingExcept(String serviceType,
+            String algorithm, Class<? extends Provider> except) {
+        return firstOfferingExcept(Providers.getProviderList(), serviceType,
+                algorithm, except);
     }
 
     /**
